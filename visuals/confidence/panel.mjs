@@ -29,7 +29,7 @@ export function mountInvestorPanel(container, controller) {
     cards.set(investor.key, { card, score, meter, status, reason });
   }
   container.append(root);
-  const labels = { engaged: 'Engaged', concerned: 'Concerned', 'nearly-out': 'Nearly out', out: 'Out' };
+  const labels = { engaged: 'Engaged', concerned: 'Concerned', 'nearly-out': 'Nearly out', out: 'Out', offered: 'Simulated offer' };
   const unsubscribe = controller.subscribe(states => {
     for (const state of states) {
       const view = cards.get(state.key);
