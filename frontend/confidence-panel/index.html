@@ -6,95 +6,96 @@
   <title>Verdict</title>
 </head>
 <body>
-  <section class="welcome" id="welcome">
-    <svg class="mark" viewBox="0 0 56 40" aria-hidden="true">
-      <rect x="2" y="16" width="9" height="22" rx="4.5" fill="#d9544f" />
-      <rect x="16" y="8" width="9" height="30" rx="4.5" fill="#e0a63a" />
-      <rect x="30" y="2" width="9" height="36" rx="4.5" fill="#3fd16a" />
-      <rect x="44" y="12" width="9" height="26" rx="4.5" fill="#e0a63a" />
-    </svg>
-    <h1>Welcome to Verdict</h1>
-    <p class="lead">A live read on how confident the room really is.</p>
-    <button class="start" id="start" type="button">Click here to get started</button>
-  </section>
-
-  <section class="choose" id="choose" hidden>
-    <h1>What are you practising for?</h1>
-    <p class="lead">Pick the kind of panel you'll face.</p>
-    <div class="options">
-      <button class="opt" type="button" data-mode="job">
-        <strong>Job interview</strong>
-        <span>Face a hiring panel</span>
-      </button>
-      <button class="opt" type="button" data-mode="investor">
-        <strong>Investor interview</strong>
-        <span>Pitch to a panel of investors</span>
-      </button>
-    </div>
-    <button class="back" id="back" type="button">Back</button>
-  </section>
+  <div class="desktop">
+    <header class="desktop-header">
+      <a class="wordmark" href="/" aria-label="Verdict home"><span class="brand-icon" aria-hidden="true">v.</span>verdict<span class="brand-divider"></span><span class="workspace-label">FOUNDER WORKSPACE</span></a>
+      <span class="desktop-caption">Big ideas start with a conversation.</span>
+    </header>
+    <main class="monitor">
+      <div class="monitor-camera" aria-hidden="true"><span></span></div>
+      <div class="screen">
+        <header class="window-bar">
+          <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          <span class="window-title">Verdict Meetings</span>
+          <span class="window-context">Investor practice</span>
+        </header>
+        <section class="welcome" id="welcome" aria-labelledby="welcome-title">
+          <div class="lobby-preview">
+            <div class="lobby-heading"><span class="eyebrow">THE INVESTOR ROOM</span><span class="room-tag">4 perspectives. One pitch.</span></div>
+            <div class="preview-grid">
+              <figure><img src="/investors/02_technical_expert_zoom.png" alt="The fictional technical expert" /><figcaption>The CTO<span>Technical expert</span></figcaption></figure>
+              <figure><img src="/investors/01_market_signals_researcher_zoom.png" alt="The fictional market signals researcher" /><figcaption>The VP<span>Market signals</span></figcaption></figure>
+              <figure><img src="/investors/03_interrogator_zoom.png" alt="The fictional interrogator" /><figcaption>The Interrogator<span>The tough questions</span></figcaption></figure>
+              <figure><img src="/investors/04_sympathizer_zoom.png" alt="The fictional sympathizer" /><figcaption>The Sympathizer<span>The founder perspective</span></figcaption></figure>
+            </div>
+            <p class="preview-caption"><span class="presence-dot"></span>Your simulated investor panel</p>
+          </div>
+          <div class="lobby-copy">
+            <span class="eyebrow">YOUR SEAT AT THE TABLE</span>
+            <h1 id="welcome-title">Small room.<br /><span>Big opportunity.</span></h1>
+            <p class="lead">Pitch your idea. Read the room. Turn tough questions into your next breakthrough.</p>
+            <div class="meeting-invite"><span class="invite-icon" aria-hidden="true">V</span><div><strong>Founder × Investor panel</strong><span>You + four AI investors · Voice or text</span></div></div>
+            <button class="start" id="start" type="button">Join the room <span aria-hidden="true">↗</span></button>
+            <p class="join-note">Your mic starts off. Take a breath, then make your pitch.</p>
+            <div class="lobby-footnote"><span>01 / Pitch</span><span>02 / Discuss</span><span>03 / Win them over</span></div>
+          </div>
+        </section>
 
   <div class="app" id="app" hidden>
-    <h1>Verdict</h1>
-    <p class="sub">Pitch to the panel by typing or speaking. Each panelist scores how confident they are.</p>
+    <header class="meeting-header">
+      <div><div class="eyebrow">VERDICT / MEETING ROOM</div><h1>Founder × Investor panel</h1></div>
+      <div class="meeting-meta"><span class="meeting-pill"><span class="presence-dot"></span>Practice session</span><span class="founder-avatar" title="You, the founder">Y</span></div>
+    </header>
     <div class="layout">
     <div class="z">
-      <div class="bar"><span><span class="rec"></span><span id="mode-label">Investment panel</span></span><span id="timer">00:14:32</span></div>
+      <div class="bar"><span class="room-info"><span class="presence-dot"></span><span id="mode-label">Investor room</span><span class="participant-count" id="participant-count">5 participants</span></span><span class="timer-wrap"><span aria-hidden="true">◷</span><span id="timer">00:00:00</span></span></div>
       <div class="g" id="grid"></div>
       <section class="offer-choices" id="offer-choices" aria-label="Investment offer decision" aria-live="polite" hidden></section>
-      <div class="call-empty" id="call-empty" role="status" hidden>
-        <h2>The investors have left</h2>
-        <p>Review their feedback in the transcript, then try your pitch again.</p>
-        <button id="call-restart" type="button">Try a new pitch</button>
+      <div class="call-empty" id="call-empty" role="status" data-result="lost" hidden>
+        <span class="end-kicker"><span class="end-dot"></span>Call ended</span>
+        <h2 id="end-title">Game over</h2>
+        <p id="end-copy">Every investor left the call. Review their feedback in the transcript, then try again.</p>
+        <div class="end-deal" id="end-deal" hidden>
+          <span class="end-deal-label" id="end-deal-label"></span>
+          <strong id="end-deal-terms"></strong>
+          <span class="end-deal-from" id="end-deal-from"></span>
+        </div>
+        <button id="call-restart" type="button">Retry</button>
       </div>
 
       <div class="chatbox" id="chatbox">
+        <div class="transcript-heading"><span>Meeting transcript</span><span>Voice + text</span></div>
         <div class="log" id="log" role="log" aria-label="Conversation transcript" aria-live="polite"></div>
         <form id="form" autocomplete="off">
-          <input id="prompt" type="text" placeholder="Pitch to the panel" aria-label="Your pitch" />
-          <button id="send" type="submit">Send</button>
+          <input id="prompt" type="text" placeholder="Share your idea with the room…" aria-label="Your pitch" />
+          <button id="send" type="submit">Send <span aria-hidden="true">↗</span></button>
         </form>
         <div class="status" id="status" aria-live="polite"></div>
         <audio id="reply-audio" controls preload="none" hidden aria-label="Investor voice reply"></audio>
         <button id="skip-audio" type="button" hidden>Skip reply</button>
       </div>
 
-      <details class="agent-panel">
-        <summary>Coding agent collaboration</summary>
-        <p id="agent-status" aria-live="polite"></p>
-        <div class="agent-actions">
-          <button id="agent-connect" type="button">Allow coding agent</button>
-          <button id="agent-copy" type="button" hidden>Copy connection</button>
-          <button id="agent-toggle" type="button" hidden>Pause agent</button>
-          <button id="agent-disconnect" type="button" hidden>Disconnect agent</button>
-        </div>
-        <div id="agent-draft" hidden>
-          <p id="agent-draft-text"></p>
-          <button id="agent-approve" type="button">Send suggestion to investors</button>
-          <button id="agent-reject" type="button">Dismiss suggestion</button>
-        </div>
-      </details>
-
       <div class="tb">
         <button id="mic" type="button" aria-pressed="false" aria-label="Turn microphone on">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /><path class="slash" d="M4 4l16 16" /></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /><path class="slash" d="M4 4l16 16" /></svg><span id="mic-label">Mic off</span>
         </button>
         <button id="cam" type="button" aria-pressed="true" aria-label="Hide photos">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg><span>Portraits</span>
         </button>
         <button id="chat" type="button" aria-pressed="true" aria-label="Hide chat">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg><span>Transcript</span>
         </button>
         <button id="freeze" type="button" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
           <span id="freeze-label" style="margin-left:8px">Freeze scores</span>
         </button>
-        <button id="tipsbtn" type="button" aria-pressed="true">Pitches</button>
-        <button id="reset" type="button">Reset</button>
-        <button class="lv" id="leave" type="button">Leave</button>
+        <button id="tipsbtn" type="button" aria-pressed="true">✧ <span>Pitches</span></button>
+        <button id="reset" type="button" title="Start a fresh practice session">↻ <span>Restart</span></button>
+        <button class="lv" id="leave" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-4c5-5 13-5 18 0v4l-5-1v-3M8 11v3l-5 1" /></svg>Leave</button>
       </div>
     </div>
     <aside class="tips" id="tips" aria-label="Practice pitches">
+      <div class="sidebar-kicker"><span class="sparkle" aria-hidden="true">✧</span> PITCH COMPANION</div>
       <div class="tips-head" id="pitch-heading">Pick a practice pitch</div>
       <p class="suggestion-caption" id="pitch-status" role="status">Three fictional practice cases with fixed people, numbers and pricing. Select one, then press Send.</p>
       <ol class="input-examples" id="pitch-options">
@@ -117,9 +118,16 @@
           </button>
         </li>
       </ol>
+      <div class="sidebar-footnote"><span aria-hidden="true">↗</span><p>A starting point, in your own voice.<br />Choose a card to add it to your message.</p></div>
     </aside>
     </div>
-    <p class="note">Photos stay on this device only and are never uploaded.</p>
+    <footer class="meeting-footer"><span>AI investor simulation</span><span>Confidence is earned, one answer at a time.</span></footer>
+  </div>
+      </div>
+      <div class="monitor-chin" aria-hidden="true"><span>V E R D I C T</span><i></i></div>
+    </main>
+    <div class="monitor-stand" aria-hidden="true"></div>
+    <footer class="desktop-footer"><span>A little pressure. A better pitch.</span><span>VERDICT / PRACTICE WITH PERSPECTIVE</span></footer>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
