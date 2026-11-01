@@ -1,5 +1,8 @@
 # investor-verdict
 
+## Reply coach
+The right sidebar now uses OpenAI for short founder-reply suggestions based on server-owned conversation history, plus an editable draft and text/voice transcript. Read the latest section of [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md). `OPENAI_API_KEY` (also accepts existing `openai_key`) stays server-side. Add to chat never submits automatically. Run `npm run test:coach` for a free check; `test:coach:live` spends OpenAI credits. Do not reintroduce rotating static tips over this feature.
+
 ## Coding agents in the live app
 Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.
 

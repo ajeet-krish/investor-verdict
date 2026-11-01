@@ -98,3 +98,21 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 @media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.tips{position:static}}
 .ctl{display:none}
 @media (max-width:540px){.g{grid-template-columns:minmax(0,1fr)}}
+
+.coach-caption,.coach-status,.coach-summary{font-size:12px;line-height:1.5;margin:0;color:var(--ink2)}
+.coach-auto{display:flex;align-items:center;gap:8px;font-size:12px}
+.coach-auto input{accent-color:#1f8f4a}
+.tips label{font-size:12px;line-height:1.5}
+.tips textarea{display:block;resize:vertical;width:100%;min-height:80px;border:1px solid #d4d3ce;border-radius:8px;padding:9px;margin:6px 0 10px;font:inherit;font-size:13px;line-height:1.5;color:var(--ink);background:#fff}
+.tips textarea:focus-visible,.tips button:focus-visible{outline:2px solid #1f8f4a;outline-offset:2px}
+.tips button{font:inherit;font-size:12px;border:1px solid #d4d3ce;border-radius:7px;padding:8px 12px;background:#fff;color:var(--ink);cursor:pointer;text-decoration:none}
+.tips #coach-use{background:#1f6b3b;color:#fff;border-color:#1f6b3b}
+.tips button:disabled{opacity:.5;cursor:default}
+.tips .focus p:empty{display:none}
+.tips .focus p{font-size:14px;min-height:0}
+.coach-notes summary,.coach-conversation summary{font-size:13px;cursor:pointer;margin-bottom:8px}
+#coach-transcript{max-height:220px;overflow-y:auto;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+#coach-transcript p{margin:0 0 10px}
+#coach-transcript:empty::before{content:"Your text, voice transcript and investor replies will appear here.";color:var(--ink2)}
+.coach-interim{font-size:12px;color:#1f6b3b;line-height:1.5}
+.coach-interim:empty{display:none}

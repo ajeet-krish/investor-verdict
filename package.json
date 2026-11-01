@@ -18,7 +18,9 @@
     "agent:result": "node agents/bridge/client.mjs result",
     "agent:wait": "node agents/bridge/client.mjs wait",
     "test:bridge": "node agents/testing/bridge-smoke.mjs",
-    "test:bridge:live": "node --env-file=.env agents/testing/bridge-smoke.mjs --live"
+    "test:bridge:live": "node --env-file=.env agents/testing/bridge-smoke.mjs --live",
+    "test:coach": "node agents/testing/run-coach.mjs",
+    "test:coach:live": "node --env-file=.env agents/testing/run-coach.mjs --live"
   },
   "dependencies": {
     "@elevenlabs/client": "1.32.1",

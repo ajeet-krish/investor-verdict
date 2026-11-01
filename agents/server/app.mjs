@@ -8,7 +8,7 @@ export const ENV_IDS = Object.freeze({
   sympathizer: 'ELEVENLABS_AGENT_ID_SYMPATHIZER',
 });
 
-export function createApiServer({ env = process.env, getSignedUrl, textPanel, replyAudio, getVoiceToken, agentBridge }) {
+export function createApiServer({ env = process.env, getSignedUrl, textPanel, replyAudio, getVoiceToken, agentBridge, replyCoach }) {
   const origin = env.APP_ORIGIN || 'http://127.0.0.1:5173';
   const agentIds = Object.fromEntries(Object.entries(ENV_IDS).map(([role, name]) => [role, env[name] || '']));
   let tokenWindow = 0, tokenCount = 0;
@@ -56,6 +56,21 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
       } catch (error) { return send(error.status || 502, { error: error.status ? error.message : 'App connection failed.' }); }
     }
     const sessionId = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith('verdict_session='))?.slice('verdict_session='.length);
+    if (replyCoach && agentBridge && req.method === 'POST' && url.pathname === '/api/coach') {
+      const abort = new AbortController();
+      res.once('close', () => abort.abort());
+      try {
+        const body = await readJson();
+        const context = agentBridge.ownerContext(roomId);
+        const answer = await replyCoach.recommend(roomId, context, body, abort.signal);
+        const latest = agentBridge.ownerContext(roomId);
+        if (latest.busy || latest.revision !== context.revision) return send(409, { error: 'The conversation changed. Refresh the suggestion.' });
+        if (!abort.signal.aborted) return send(200, answer);
+      } catch (error) {
+        if (!abort.signal.aborted) return send(error.status || 502, { error: error.status === 410 ? 'Start a new call to use the reply coach.' : error.status ? error.message : 'Recommendation failed.' });
+      }
+      return;
+    }
     if (getVoiceToken && req.method === 'POST' && url.pathname === '/api/voice-token') {
       if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'JSON required.' });
       if (!env.ELEVENLABS_API_KEY) return send(503, { error: 'Voice is not configured.' });
@@ -88,6 +103,7 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
         if (agentBridge) ensureRoom();
         if (url.pathname === '/api/reset') {
           agentBridge?.reset(roomId);
+          replyCoach?.reset(roomId);
           replyAudio?.reset(sessionId);
           await textPanel.reset(sessionId);
           addCookie('verdict_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
