@@ -1,3 +1,9 @@
+# Render blueprint for investor verdict.
+# Default runtime is Node with rootDir deploy, Build npm install, Start npm start.
+# Docker fallback: deploy/Dockerfile exists so a dashboard service created with
+# Docker runtime can still build. If dashboard shows Docker type, either keep
+# Docker and Render will use deploy/Dockerfile, or switch dashboard service to
+# Node runtime with Root deploy, Build npm install, Start npm start.
 services:
     - type: web
       name: investor-verdict
