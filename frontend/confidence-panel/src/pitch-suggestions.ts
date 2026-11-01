@@ -44,6 +44,10 @@ export function createPitchSuggestions(api: string, hooks: { busy: () => boolean
       cancel(); buttons = []; list.replaceChildren(); heading.textContent = 'Call complete';
       status.textContent = 'All investors have left. Your transcript is still here. Reset to practise again.';
     },
+    offer() {
+      cancel(); buttons = []; list.replaceChildren(); heading.textContent = 'Your decision';
+      status.textContent = 'Choose Accept offer or Decline in the call to continue.';
+    },
     async complete(revision?: number) {
       cancel();
       if (!Number.isSafeInteger(revision)) { status.textContent = 'Suggestions are unavailable for this session.'; return; }

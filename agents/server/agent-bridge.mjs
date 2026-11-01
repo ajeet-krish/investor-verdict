@@ -54,8 +54,8 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
       if (room.busy) throw new PanelError('Wait for the current investor round.', 409);
       revoke(room);
       room.jobs.clear();
-      room.autoSend = true;
-      room.ready = true; // Explicit approval from an idle/reloaded app starts its control flow.
+      room.ready = !room.result?.gameOver && !room.result?.pendingOffers?.length;
+      room.autoSend = room.ready; // Offer decisions always belong to the human.
       room.token = randomBytes(32).toString('base64url');
       tokens.set(room.token, id);
       touch(room);
@@ -65,6 +65,7 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
     agentContext(token) { return context(agentRoom(token)); },
     suggest(token, body) {
       const room = agentRoom(token);
+      if (room.result?.gameOver || room.result?.pendingOffers?.length) throw new PanelError('Wait for the founder to decide on the offer or start a new game.', 409);
       if (!body || typeof body.pitch !== 'string' || !body.pitch.trim() || body.pitch.length > 4000 ||
           typeof body.requestId !== 'string' || !/^[\w-]{8,100}$/.test(body.requestId) ||
           !Number.isSafeInteger(body.revision) || typeof body.author !== 'string' || !body.author.trim() || body.author.length > 80) {
@@ -94,9 +95,10 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
       job.status = 'rejected';
       return copy(job);
     },
-    begin(id, body) {
+    begin(id, body, { offerDecision = false } = {}) {
       const room = roomFor(id);
       if (room.busy) throw new PanelError('A founder turn is already in progress.', 409);
+      if (room.result?.gameOver || (!offerDecision && room.result?.pendingOffers?.length)) throw new PanelError('Resolve the offer or start a new game first.', 409);
       let job;
       if (body.bridgeJobId !== undefined) {
         job = room.jobs.get(body.bridgeJobId);
@@ -118,6 +120,7 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
       if (result.turn === 1) room.history = [];
       room.practiceCaseId = ticket.practiceCaseId;
       room.result = copy(result);
+      if (result.gameOver || result.pendingOffers?.length) { room.autoSend = false; cancel(room, 'stale'); }
       room.history.push({ founder: ticket.pitch, turn: result.turn, responses: result.speakingOrder.map(role => {
         const r = result.responses.find(r => r.role === role); return { role, reply: r.reply };
       }) });
@@ -132,14 +135,14 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
     fail(ticket) {
       const room = rooms.get(ticket.id);
       if (!room || room.revision !== ticket.revision) return;
-      room.busy = false; room.ready = true;
+      room.busy = false; room.ready = !room.result?.gameOver && !room.result?.pendingOffers?.length;
       const job = room.jobs.get(ticket.jobId);
       if (job) { job.status = 'failed'; job.error = 'Investor evaluation failed. No automatic retry was made.'; }
     },
     ready(id, revision) {
       const room = roomFor(id);
       if (room.busy || room.revision !== revision) throw new PanelError('App conversation changed.', 409);
-      room.ready = true; touch(room);
+      room.ready = !room.result?.gameOver && !room.result?.pendingOffers?.length; touch(room);
     },
     mode(id, autoSend) {
       const room = roomFor(id);

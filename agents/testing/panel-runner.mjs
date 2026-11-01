@@ -7,10 +7,19 @@ import { scenarioSdk, mockEnv } from './mock-panel.mjs';
 
 export function checkTurn(result, priorScores, expected = {}) {
   const departures = PANEL.filter((_, i) => priorScores[i] > 0 && result.scores[i] === 0).map(r => r.key);
-  assert.deepEqual([...result.departureOrder].sort(), [...departures].sort(), 'Every newly out investor gets a farewell');
-  assert.deepEqual(result.speakingOrder.slice(0, departures.length), result.departureOrder, 'Farewells have priority');
-  assert.ok(Array.isArray(result.speakingOrder) && result.speakingOrder.length - departures.length <= 2, 'At most two ordinary speakers plus farewells');
-  assert.deepEqual([...result.departedRoles].sort(), PANEL.filter((_, i) => result.scores[i] === 0).map(r => r.key).sort());
+  const offers = PANEL.filter((_, i) => priorScores[i] < 100 && result.scores[i] === 100).map(r => r.key);
+  if (result.event === 'pitch') {
+    assert.deepEqual([...result.departureOrder].sort(), [...departures].sort(), 'Every newly out investor gets a farewell');
+    assert.deepEqual([...result.offerOrder].sort(), [...offers].sort(), 'Every newly convinced investor gets an offer turn');
+  } else {
+    assert.deepEqual(result.scores, priorScores, 'Decisions do not rescore');
+    assert.equal(result.gameOver, result.event === 'offer-accepted');
+    assert.equal(result.departureOrder[0], result.decision.role, 'Chosen investor speaks first');
+  }
+  const mandatory = [...result.departureOrder, ...result.offerOrder];
+  assert.deepEqual(result.speakingOrder.slice(0, mandatory.length), mandatory, 'Mandatory turns have priority');
+  assert.ok(Array.isArray(result.speakingOrder) && result.speakingOrder.length - mandatory.length <= (result.event === 'pitch' ? 2 : 0), 'Ordinary reply cap excludes mandatory turns');
+  assert.ok(PANEL.filter((_, i) => result.scores[i] === 0).every(r => result.departedRoles.includes(r.key)));
   assert.equal(new Set(result.speakingOrder).size, result.speakingOrder.length, 'No repeated speaker');
   assert.equal(result.responses.length, 4);
   assert.equal(result.maxSpeakers, 2);
@@ -46,7 +55,7 @@ export async function runScenario(scenario, { live = false, provider, audio = fa
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const base = `http://127.0.0.1:${server.address().port}`;
-  let cookie = '', scores = [50, 50, 50, 50];
+  let cookie = '', scores = [50, 50, 50, 50], lastResult;
   const records = [];
   async function post(path, body) {
     const response = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie },
@@ -59,7 +68,9 @@ export async function runScenario(scenario, { live = false, provider, audio = fa
   }
   try {
     for (const [i, step] of scenario.turns.entries()) {
-      const result = await post('/api/evaluate', { pitch: step.pitch, panelists: PANEL.map(p => p.title), scores });
+      const result = step.decision
+        ? await post('/api/offer-decision', { decision: step.decision, role: step.role, turn: lastResult?.turn })
+        : await post('/api/evaluate', { pitch: step.pitch, panelists: PANEL.map(p => p.title), scores });
       const record = { turn: i + 1, pitch: step.pitch, result, checks: 'passed' };
       records.push(record);
       try { checkTurn(result, scores, step.expect); assert.equal(result.turn, i + 1, 'Session memory retained'); }
@@ -76,6 +87,7 @@ export async function runScenario(scenario, { live = false, provider, audio = fa
         }
       }
       scores = result.scores;
+      lastResult = result;
       onTurn(record);
       // Never retry paid requests or continue a scenario after its assumptions fail.
       if (record.checks !== 'passed') break;

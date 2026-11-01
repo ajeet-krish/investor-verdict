@@ -26,7 +26,10 @@ export function scenarioSdk(scenario) {
           score_reason: `Fixture assessment: ${status}.` };
       } else {
         const question = packet.pending_concern?.text ?? questions[role];
-        result = packet.departure
+        result = packet.closing
+          ? { reply: packet.offer_decision === 'accept' ? 'Congratulations and good luck!' : 'I respect your decision. Goodbye.', concern: null }
+          : packet.offer ? { reply: 'I would like to invest. Please accept or decline my offer.', concern: null }
+          : packet.departure
           ? { reply: "I'm passing because the evidence is missing. I'm leaving the call.", concern: null }
           : { reply: question, concern: question };
       }

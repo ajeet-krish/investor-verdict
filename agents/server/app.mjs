@@ -62,6 +62,7 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
       try {
         const body = await readJson();
         const context = agentBridge.ownerContext(roomId);
+        if (context.lastResult?.gameOver || context.lastResult?.pendingOffers?.length) return send(409, { error: 'Decide on the offer or start a new game before requesting suggestions.' });
         const answer = await replyCoach.recommend(roomId, context, body, abort.signal);
         const latest = agentBridge.ownerContext(roomId);
         if (latest.busy || latest.revision !== context.revision) return send(409, { error: 'The conversation changed. Refresh the suggestion.' });
@@ -96,8 +97,9 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
       }
       return;
     }
-    if (textPanel && req.method === 'POST' && ['/api/evaluate', '/evaluate', '/api/reset'].includes(url.pathname)) {
+    if (textPanel && req.method === 'POST' && ['/api/evaluate', '/evaluate', '/api/reset', '/api/offer-decision'].includes(url.pathname)) {
       if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'JSON required.' });
+      if (url.pathname === '/api/offer-decision' && !sessionId) return send(409, { error: 'An offer decision requires the live call cookie.' });
       let ticket;
       try {
         if (agentBridge) ensureRoom();
@@ -116,10 +118,13 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
         }
         let body;
         try { body = JSON.parse(raw); } catch { return send(400, { error: 'Invalid JSON.' }); }
-        if (agentBridge) ticket = agentBridge.begin(roomId, body ?? {});
-        const { sessionId: id, result } = await textPanel.evaluate(body, sessionId);
+        const offerDecision = url.pathname === '/api/offer-decision';
+        if (agentBridge) ticket = agentBridge.begin(roomId, offerDecision
+          ? { pitch: `I ${body?.decision} the offer from ${body?.role}.` } : body ?? {}, { offerDecision });
+        const { sessionId: id, result } = offerDecision
+          ? await textPanel.decideOffer(body, sessionId) : await textPanel.evaluate(body, sessionId);
         if (ticket) result.bridgeRevision = agentBridge.finish(ticket, result);
-        addCookie(`verdict_session=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=120`);
+        addCookie(`verdict_session=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${result.pendingOffers?.length ? 1800 : 120}`);
         return send(200, result);
       } catch (error) {
         if (ticket) agentBridge.fail(ticket);

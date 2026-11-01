@@ -55,7 +55,7 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
   }
   function idle(session) {
     clearTimeout(session.timer);
-    session.timer = setTimeout(() => void dispose(session), idleMs);
+    session.timer = setTimeout(() => void dispose(session), session.pendingOffers.size ? Math.max(idleMs, 1800000) : idleMs);
     session.timer.unref?.();
   }
   async function startInvestor(session, role) {
@@ -121,6 +121,42 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
     });
   }
 
+  async function askSpeech(session, role, packet, terminal) {
+    const request = { ...packet, required_response_fields: {
+      reply: 'One brief spoken statement. This is SPEAK, never an assessment or a bid.',
+      concern: terminal ? 'JSON null. No new question in an offer or farewell.' : 'JSON null, or the exact question substring from reply (at most 500 characters).',
+    } };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const answer = await ask(session, role, attempt === 0 ? request : { ...request,
+        correction: 'Your SPEAK response was invalid. Correct this same speech grant. Return ONLY a complete JSON object with reply and concern. No wants_turn, score_delta or assessment. Scores are already applied; do not score again. Follow the supplied offer/closing instructions even when other investors already spoke.' });
+      try { return parseSpeech(answer, terminal); } catch { /* One format correction; no whole-round or transport retry. */ }
+    }
+    throw new PanelError('An investor returned an invalid public reply after one correction.');
+  }
+
+  function finishRound(session, { founder, panelists = PANEL.map(r => r.title), bids = [], speeches,
+    departureOrder = [], offerOrder = [], event = 'pitch', decision = null }) {
+    const first = speeches[0];
+    session.lastExchange = { founder, speaker: first?.role ?? null, reply: first?.reply ?? '', responses: speeches };
+    const states = session.controller.snapshot();
+    const responses = panelists.map(title => {
+      const role = PANEL.find(p => p.title === title), state = states.find(s => s.key === role.key);
+      const bid = bids.find(b => b.key === role.key), speech = speeches.find(s => s.role === role.key);
+      return { panelist: title, role: role.key, confidence: state.confidence,
+        reason: bid?.assessmentStatus === 'unavailable' ? bid.reason : state.reason,
+        reply: speech?.reply ?? '', spoke: Boolean(speech), wantsTurn: bid?.wantsTurn ?? false,
+        status: state.status, answerStatus: bid?.answerStatus ?? null, assessmentStatus: bid?.assessmentStatus ?? null,
+        pendingConcern: session.investors.get(role.key).pendingConcern };
+    });
+    session.turn++;
+    return { sessionId: session.id, result: { scores: responses.map(r => r.confidence), responses,
+      speakingOrder: speeches.map(s => s.role), speaker: first?.role ?? null, departureOrder, offerOrder,
+      departedRoles: PANEL.filter(r => session.departed.has(r.key)).map(r => r.key),
+      pendingOffers: [...session.pendingOffers], gameOver: session.gameOver, acceptedOffer: session.acceptedOffer,
+      event, decision, selectionReason: bids.find(b => b.key === first?.role)?.reason ?? null,
+      turn: session.turn, source: 'elevenlabs', initialScore: 50, maxSpeakers: MAX_SPEAKERS } };
+  }
+
   return {
     getSpeech(sessionId, turn, role) {
       const session = sessions.get(sessionId);
@@ -137,9 +173,12 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
       if (!env.ELEVENLABS_API_KEY || PANEL.some(role => !env[role.env])) throw new PanelError('Configure the API key and four agent IDs in .env.', 503);
       let session = sessions.get(sessionId);
       if (session?.busy) throw new PanelError('A pitch is already being evaluated in this session.', 409);
+      if (session?.gameOver) throw new PanelError('This game has ended. Start a new pitch.', 409);
+      if (session?.pendingOffers.size) throw new PanelError('Accept or decline the pending investment offers first.', 409);
       if (!session) {
         if (sessions.size >= maxSessions) throw new PanelError('Too many active pitch sessions. Try again shortly.', 429);
-        session = { id: randomUUID(), controller: createInterestController(), investors: new Map(), busy: false, closed: false, turn: 0, timer: null, lastSpeaker: null, lastExchange: null };
+        session = { id: randomUUID(), controller: createInterestController(), investors: new Map(), busy: false, closed: false, turn: 0, timer: null, lastSpeaker: null, lastExchange: null,
+          pendingOffers: new Set(), departed: new Set(), gameOver: false, acceptedOffer: null };
         sessions.set(session.id, session);
       }
       session.busy = true;
@@ -152,7 +191,7 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         const before = session.controller.snapshot();
         const active = PANEL.filter(role => {
           const state = before.find(s => s.key === role.key);
-          return state.confidence > 0 && state.confidence < 100;
+          return !session.departed.has(role.key) && state.confidence > 0 && state.confidence < 100;
         });
         // All active investors listen and bid privately; none has the floor yet.
         const bids = await Promise.all(active.map(async role => {
@@ -196,20 +235,27 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         const scored = session.controller.snapshot();
         const departures = bids.filter(bid => before.find(s => s.key === bid.key).confidence > 0 &&
           scored.find(s => s.key === bid.key).confidence === 0);
-        const remaining = bids.filter(bid => !departures.includes(bid));
+        const offers = bids.filter(bid => before.find(s => s.key === bid.key).confidence < 100 &&
+          scored.find(s => s.key === bid.key).confidence === 100);
+        for (const bid of departures) session.departed.add(bid.key);
+        for (const bid of offers) session.pendingOffers.add(bid.key);
+        const remaining = bids.filter(bid => !departures.includes(bid) && !offers.includes(bid));
         const departureOrder = departures.map(bid => bid.key);
+        const offerOrder = offers.map(bid => bid.key);
         const speeches = [];
         let regularSpeakers = 0;
         // Newly out investors always receive a farewell grant first, even if
         // they passed their bid. Only ordinary replies consume the two slots.
-        while (departures.length || regularSpeakers < MAX_SPEAKERS) {
+        while (departures.length || offers.length || regularSpeakers < MAX_SPEAKERS) {
           const departure = departures.length > 0;
-          const winner = departure ? departures.shift() : selectSpeaker(remaining, session.lastSpeaker, random);
+          const offer = !departure && offers.length > 0;
+          const winner = departure ? departures.shift() : offer ? offers.shift() : selectSpeaker(remaining, session.lastSpeaker, random);
           if (!winner) break;
-          if (!departure) { remaining.splice(remaining.indexOf(winner), 1); regularSpeakers++; }
+          if (!departure && !offer) { remaining.splice(remaining.indexOf(winner), 1); regularSpeakers++; }
           const role = PANEL.find(role => role.key === winner.key);
           const state = session.controller.snapshot().find(s => s.key === role.key);
-          const answer = await ask(session, role, {
+          const terminal = state.confidence === 0 || state.confidence === 100;
+          const speech = await askSpeech(session, role, {
             protocol: 'investor_panel_v2', phase: 'speak', round: session.turn + 1,
             founder_message: input.pitch, bid_reason: winner.reason,
             pending_concern: session.investors.get(role.key).pendingConcern, answer_status: winner.answerStatus,
@@ -217,12 +263,10 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
             previous_exchange: { founder: input.pitch, responses: [...speeches] },
             confidence: state.confidence, status: state.status,
             departure, exit_reason: departure ? state.reason : null,
+            offer,
+            ...(offer ? { instruction: 'Your confidence reached 100. You have a mandatory priority offer turn outside the ordinary two-speaker limit. Briefly say why you are convinced and offer to invest in this simulation. Tell the founder to Accept or Decline using the buttons. Do not invent investment amounts, equity or terms. Stay in the call awaiting their choice. Return reply and concern: null.' } : {}),
             ...(departure ? { instruction: 'You have the immediate farewell turn because your confidence reached zero. Briefly explain the concrete reason in exit_reason, say you are passing and leaving the call. No new question. Return JSON with reply and concern: null. Farewells are exempt from the normal two-speaker limit.' } : {}),
-          });
-          let speech;
-          const terminal = state.confidence === 0 || state.confidence === 100;
-          try { speech = parseSpeech(answer, terminal); }
-          catch { throw new PanelError('An investor returned an invalid public reply.'); }
+          }, terminal);
           const { reply, concern } = speech;
           const investor = session.investors.get(role.key);
           // Never overwrite an unresolved question merely because its owner speaks again.
@@ -238,30 +282,7 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
             await Promise.allSettled([investor.connection.endSession()]);
           }
         }
-        const first = speeches[0];
-        session.lastExchange = { founder: input.pitch, speaker: first?.role ?? null,
-          reply: first?.reply ?? '', responses: speeches };
-        const states = session.controller.snapshot();
-        const responses = input.panelists.map(title => {
-          const role = PANEL.find(p => p.title === title);
-          const state = states.find(s => s.key === role.key);
-          const bid = bids.find(b => b.key === role.key);
-          const speech = speeches.find(s => s.role === role.key);
-          const spoke = Boolean(speech);
-          return { panelist: title, role: role.key, confidence: state.confidence,
-            reason: bid?.assessmentStatus === 'unavailable' ? bid.reason : state.reason,
-            reply: speech?.reply ?? '', spoke, wantsTurn: bid?.wantsTurn ?? false,
-            status: state.status, answerStatus: bid?.answerStatus ?? null,
-            assessmentStatus: bid?.assessmentStatus ?? null,
-            pendingConcern: session.investors.get(role.key).pendingConcern };
-        });
-        session.turn++;
-        return {
-          sessionId: session.id,
-          result: { scores: responses.map(r => r.confidence), responses, speakingOrder: speeches.map(s => s.role), speaker: first?.role ?? null,
-            departureOrder, departedRoles: PANEL.filter(role => states.find(s => s.key === role.key).confidence === 0).map(role => role.key),
-            selectionReason: bids.find(b => b.key === first?.role)?.reason ?? null, turn: session.turn, source: 'elevenlabs', initialScore: 50, maxSpeakers: MAX_SPEAKERS },
-        };
+        return finishRound(session, { founder: input.pitch, panelists: input.panelists, bids, speeches, departureOrder, offerOrder });
       } catch (error) {
         await dispose(session);
         if (error instanceof PanelError) throw error;
@@ -270,6 +291,51 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         session.busy = false;
         if (!session.closed) idle(session);
       }
+    },
+    async decideOffer(body, sessionId) {
+      if (shuttingDown) throw new PanelError('Server is shutting down.', 503);
+      const session = sessions.get(sessionId);
+      if (!session || session.closed) throw new PanelError('This call expired. Start a new pitch.', 409);
+      if (!body || !PANEL.some(r => r.key === body.role) || !['accept', 'decline'].includes(body.decision) || !Number.isSafeInteger(body.turn)) {
+        throw new PanelError('Choose an investor, accept or decline, and the current turn.', 400);
+      }
+      if (session.busy || session.gameOver || body.turn !== session.turn || !session.pendingOffers.has(body.role)) {
+        throw new PanelError('That offer is no longer available or another turn is in progress.', 409);
+      }
+      session.busy = true; clearTimeout(session.timer);
+      const accepted = body.decision === 'accept';
+      const chosen = PANEL.find(r => r.key === body.role);
+      const closing = accepted ? [chosen, ...PANEL.filter(r => r.key !== chosen.key && !session.departed.has(r.key))] : [chosen];
+      const founder = `I ${body.decision} ${chosen.title}'s offer.`;
+      try {
+        const speeches = [];
+        for (const role of closing) {
+          const speech = await askSpeech(session, role, {
+            protocol: 'investor_panel_v2', phase: 'speak', round: session.turn + 1,
+            founder_message: founder, offer_decision: body.decision, chosen_investor: chosen.title,
+            chosen_role: chosen.key, closing: true, confidence: session.controller.snapshot().find(s => s.key === role.key).confidence,
+            previous_exchange: { founder, responses: [...speeches] },
+            instruction: accepted
+              ? role.key === chosen.key
+                ? 'The founder accepted your simulated offer. Give a brief happy final statement, thank them and wish them luck. The game is over. No questions or invented deal terms. Return reply and concern: null.'
+                : 'The founder accepted another investor. The game is over. Give a brief gracious good-luck farewell in your own voice. No questions, bids, objections, or competing offers. Return reply and concern: null.'
+              : 'The founder declined your offer. Respect the choice, give a brief gracious final statement and say you are leaving. No questions, persuasion or score changes. The other investors continue. Return reply and concern: null.',
+          }, true);
+          speeches.push({ role: role.key, reply: speech.reply });
+          session.investors.get(role.key).pendingConcern = null;
+        }
+        for (const role of closing) {
+          session.departed.add(role.key); session.pendingOffers.delete(role.key);
+          await Promise.allSettled([session.investors.get(role.key).connection.endSession()]);
+        }
+        if (accepted) { session.gameOver = true; session.acceptedOffer = chosen.key; session.pendingOffers.clear(); }
+        return finishRound(session, { founder, speeches, departureOrder: closing.map(r => r.key),
+          event: accepted ? 'offer-accepted' : 'offer-declined', decision: { role: chosen.key, choice: body.decision } });
+      } catch (error) {
+        await dispose(session);
+        if (error instanceof PanelError) throw error;
+        throw new PanelError('Could not finish the investor decision. Start a new pitch.');
+      } finally { session.busy = false; if (!session.closed) idle(session); }
     },
     async reset(sessionId) { await dispose(sessions.get(sessionId)); },
     async close() { shuttingDown = true; await Promise.allSettled([...sessions.values()].map(dispose)); },

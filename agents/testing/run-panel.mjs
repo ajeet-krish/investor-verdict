@@ -12,7 +12,9 @@ try {
   if (values.file && !values.live) throw new Error('Custom input files require --live. Offline mode uses explicit provider fixtures.');
   const selected = values.file ? JSON.parse(await readFile(values.file, 'utf8'))
     : scenarios.filter(s => values.scenario === 'all' || values.scenario.split(',').includes(s.name));
-  if (!Array.isArray(selected) || !selected.length || selected.some(s => typeof s.name !== 'string' || !Array.isArray(s.turns) || !s.turns.length || s.turns.some(t => typeof t.pitch !== 'string' || !t.pitch.trim() || t.pitch.length > 4000))) {
+  if (!Array.isArray(selected) || !selected.length || selected.some(s => typeof s.name !== 'string' || !Array.isArray(s.turns) || !s.turns.length || s.turns.some(t => t.decision
+    ? !['accept', 'decline'].includes(t.decision) || typeof t.role !== 'string'
+    : typeof t.pitch !== 'string' || !t.pitch.trim() || t.pitch.length > 4000))) {
     throw new Error('Use a known scenario or a JSON array of {name, turns: [{pitch, expect?}]}.');
   }
   console.log(values.live ? 'LIVE: consumes ElevenLabs credits. At most one correction per invalid assessment; no whole-turn retries.' : 'OFFLINE: deterministic provider fixtures, no credits or microphone.');

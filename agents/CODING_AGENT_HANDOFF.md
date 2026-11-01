@@ -16,3 +16,5 @@ Use `npm test` and `npm run test:bridge` for free checks. `npm run test:bridge:l
 This CLI connects to the app, not directly to ElevenLabs. It shares the live call's backend context and does not require the coding agent to receive the ElevenLabs API key. Another coder's app on another machine is a separate connection; localhost addresses cannot be reached from an unrelated cloud session.
 
 When every investor has zero confidence, the call is complete. The app plays all farewells, removes tiles sequentially and pauses agent control. Preserve the transcript and wait for the coder to reset; do not keep proposing inputs to an empty panel.
+
+When `pendingOffers` is nonempty, stop proposing founder replies and let the human choose Accept or Decline in the app. An agent bearer token cannot execute that choice. Acceptance sets `gameOver` and ends the game after all remaining closing statements; wait for a new call. Declining removes one investor and preserves scores/concerns for everyone else.

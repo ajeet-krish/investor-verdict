@@ -67,8 +67,14 @@ interface Evaluation {
     status: "out" | "offered" | "nearly-out" | "concerned" | "engaged";
   }>;
   speakingOrder: InvestorRole[]; // Farewells first, then at most two ordinary contributors.
-  departureOrder: InvestorRole[]; // Newly-zero roles, a prefix of speakingOrder.
-  departedRoles: InvestorRole[]; // All zero-score roles, including earlier departures.
+  departureOrder: InvestorRole[]; // Farewell roles, a prefix of speakingOrder.
+  offerOrder: InvestorRole[]; // Newly-100 offer turns, after farewells and before ordinary replies.
+  pendingOffers: InvestorRole[]; // Human choices required before the next founder turn.
+  event: "pitch" | "offer-accepted" | "offer-declined";
+  decision: { role: InvestorRole; choice: "accept" | "decline" } | null;
+  gameOver: boolean;
+  acceptedOffer: InvestorRole | null;
+  departedRoles: InvestorRole[]; // All departed roles, including declined offers and game-ending goodbyes.
   speaker: InvestorRole | null; // Legacy alias for the FIRST contributor only.
   selectionReason: string | null; // First contributor's metadata, not dialogue.
   turn: number;
@@ -200,3 +206,24 @@ When the final remaining investor's farewell completes or is skipped, the UI aut
 The call stage now retains its height as the participant count changes: 16:9 on desktop and 3:4 on narrow screens. The remaining tiles fill that fixed stage, so two departures cannot collapse the call area into a shorter row. The layout still adapts to the available viewport width.
 
 After farewell playback, the departing tile glows with a scanline, compresses into a thin line, blurs and fades over 620 ms. The next investor waits for this effect before speaking. After the final effect, the founder returns to the welcome screen as before. Reduced-motion users skip the effect. Reset cancels active animations and prevents a delayed completion from hiding a restored investor. No provider/backend changes or paid calls were needed. Seven frontend sequencing/cancellation tests and the production build pass.
+
+
+## Offers at 100, accept/decline and winning the game
+
+Owner: Arjun Behl. Branch: `feat/live-reply-coach`.
+
+Every investor newly reaching 100 gets a mandatory offer turn even after other investors speak or if its bid was a pass. Priority order is zero-confidence farewells, newly-100 offers, then at most two ordinary replies. No investor speaks twice within one response. The investor offers to invest in the simulation without inventing financial terms and stays visible for the founder's decision. Multiple simultaneous offers each receive a card with Accept offer and Decline buttons.
+
+The app pauses founder text/voice and coding-agent submissions until offers are resolved. Decisions require a button click and the browser-owned session cookie: `POST /api/offer-decision` with `{role, decision: "accept" | "decline", turn}`. Buttons remain disabled through existing audio/animation and during a request. Stale, concurrent, repeated or unavailable decisions receive 409 before further provider calls. A bearer connection token alone cannot make decisions. Pending offers extend the local session/cookie lifetime to 30 minutes.
+
+Decline grants only that investor a respectful final statement, then its tile leaves with the existing animation. Its confidence stays at 100 and it never participates again. The remaining investors retain scores and concerns, and the game resumes once any other pending offers are resolved. Accept makes `gameOver` true, clears pending offers and grants the chosen investor a happy closing statement followed by every other investor still in the call wishing the founder luck. Previously departed investors stay gone. These closing turns bypass the ordinary cap. After the last farewell/animation, the founder automatically returns to the welcome screen with **Offer accepted! Start a new pitch**.
+
+Offer decisions create a new result turn and transcript entry without rescoring. The four-entry score/response mapping stays stable. Membership comes from `departedRoles`, which can now include investors whose scores are above zero. `src/investor-call.ts` validates both pitch and decision results; `src/offer-choices.ts` manages the explicit choices. The server blocks founder turns, suggestions and coaching while a choice is pending and blocks further play after acceptance. Reset starts over at 50 and revokes the old bridge token.
+
+Every speech packet now repeats the two-field reply/concern contract. A completed wrong-format speech gets at most one correction request for the same grant; no score is applied again. A second invalid reply still fails explicitly rather than fabricating a statement. This fixed an observed live case where an ordinary investor returned assessment JSON after two other investors made offers. Transport failures and whole rounds are not automatically retried.
+
+Routine tests: `npm test`, `npm run build`, `npm run test:offers -- --audio`, `npm run test:bridge`. For an isolated synthetic call through real ElevenLabs: `npm run test:offers:live -- --audio --out /tmp/offer-test.json`. The offer runner validates real frontend payload contracts, plays a decline then an acceptance, checks audio streams and closes its sessions. It does not use computer automation or the user's live call.
+
+Validation: the final live offer test passed seven result turns. Scores reached 100/0/30/100, producing one zero-score farewell, two mandatory offers and one ordinary reply in the same round. Declining the CTO produced one goodbye with unchanged scores and left the Sympathizer's offer pending. Accepting the Sympathizer produced its final statement followed by the remaining Interrogator's good-luck message, with no return from the previously departed VP or CTO. All selected audio streams were nonempty and every result passed the frontend contract validator. Evidence: [offer-decisions.json](../docs/test-results/offer-decisions.json). The first live run exposed the wrong-phase speech format; the bounded correction was added and regression-tested before the successful run.
+
+Final checks: all 98 automated tests, the TypeScript/production build, the offline coding-agent bridge smoke and the isolated real ElevenLabs offer/audio test pass. No browser automation was used.

@@ -60,6 +60,24 @@ test('HTTP serves all four farewell audio streams, then never replays departed i
   assert.equal(report.records[3].audio.length, 0);
 });
 
+test('HTTP offer decisions preserve scores, play a decline, then play all remaining acceptance farewells', async () => {
+  const scenario = { name: 'offer-decisions', turns: Array.from({ length: 3 }, (_, turn) => ({
+    pitch: 'Synthetic test: compelling supporting evidence.',
+    expect: { investors: Object.fromEntries(PANEL.map((role, i) => [role.key, {
+      scoreDelta: 20, answerStatus: turn === 1 && i < 2 ? 'resolved' : 'none',
+    }])) },
+  })).concat([{ role: 'technical_expert', decision: 'decline' }, { role: 'interrogator', decision: 'accept' }]) };
+  const report = await runScenario(scenario, { audio: true });
+  assert.equal(report.passed, true, JSON.stringify(report));
+  assert.equal(report.records[2].result.offerOrder.length, 4);
+  assert.equal(report.records[2].audio.length, 4);
+  assert.equal(report.records[3].audio.length, 1);
+  assert.equal(report.records[3].result.gameOver, false);
+  assert.equal(report.records[4].audio.length, 3);
+  assert.equal(report.records[4].result.speakingOrder[0], 'interrogator');
+  assert.equal(report.records[4].result.gameOver, true);
+});
+
 test('simultaneous founder submissions are rejected with 409, without duplicate scores or replies', async t => {
   const scenario = scenarios.find(s => s.name === 'both');
   const sdk = scenarioSdk(scenario);

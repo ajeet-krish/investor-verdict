@@ -18,6 +18,16 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 .call-empty p{color:#c4c4c8;font-size:14px;max-width:360px;line-height:1.5}
 .call-empty button{border:0;border-radius:8px;padding:11px 18px;font:inherit;cursor:pointer;background:#fff;color:#1b1b1d}
 .call-empty button:focus-visible{outline:3px solid #3fd16a;outline-offset:3px}
+.offer-choices{margin-top:12px;padding:18px;background:linear-gradient(135deg,#17352a,#242427);border:1px solid #3f9167;border-radius:12px}
+.offer-choices h2{margin:0;font-size:19px;color:#a4f0bd}
+.offer-choices p{font-size:13px;line-height:1.5;color:#d5e4d9}
+.offer-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid #ffffff20}
+.offer-card strong{flex:1;min-width:100px;font-size:14px}
+.offer-card button{font:inherit;font-size:13px;padding:10px 14px;border:1px solid #ffffff30;border-radius:8px;cursor:pointer}
+.offer-accept{background:#a4f0bd;color:#12271a;font-weight:600}
+.offer-decline{background:#ffffff0d;color:#fff}
+.offer-card button:disabled{opacity:.45;cursor:default}
+.offer-card button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 .t{position:relative;min-width:0;min-height:0;border-radius:10px;overflow:hidden;background-size:cover;background-position:center}
 .t.exiting{pointer-events:none;z-index:2;transform-origin:50% 65%;will-change:transform,opacity,filter;box-shadow:inset 0 0 0 2px #ff9995,0 0 24px #ff756640}
 .t.exiting::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 35%,#ffe4dfaa 49%,#ff998088 50%,transparent 65%),repeating-linear-gradient(0deg,transparent 0 5px,#fff2 5px 6px);animation:exit-scan .62s ease-out both}

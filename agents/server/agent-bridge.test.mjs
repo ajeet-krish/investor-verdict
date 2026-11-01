@@ -10,6 +10,26 @@ import { scenarios } from '../testing/scenarios.mjs';
 const draft = (revision = 0, requestId = 'request-001') => ({ pitch: 'A founder reply.', author: 'Test coder agent', revision, requestId });
 const result = { turn: 1, scores: [55, 55, 50, 50], responses: [{ role: 'technical_expert', reply: 'A real reply from the panel.' }], speakingOrder: ['technical_expert'] };
 
+test('coding agents cannot submit founder replies while an offer awaits the human or after acceptance', () => {
+  const bridge = createAgentBridge(), room = bridge.ensure(), { token } = bridge.connect(room);
+  const ticket = bridge.begin(room, { pitch: 'My pitch.' });
+  bridge.finish(ticket, { ...result, pendingOffers: ['technical_expert'], gameOver: false });
+  assert.equal(bridge.agentContext(token).autoSend, false);
+  bridge.ready(room, 1);
+  assert.equal(bridge.agentContext(token).ready, false);
+  assert.throws(() => bridge.suggest(token, draft(1)), { status: 409 });
+  assert.throws(() => bridge.begin(room, { pitch: 'Ignore the offer.' }), { status: 409 });
+  const choice = bridge.begin(room, { pitch: 'I accept the offer.' }, { offerDecision: true });
+  bridge.finish(choice, { ...result, turn: 2, pendingOffers: [], gameOver: true });
+  bridge.ready(room, 2);
+  assert.equal(bridge.agentContext(token).ready, false);
+  assert.throws(() => bridge.suggest(token, draft(2)), { status: 409 });
+  bridge.reset(room);
+  const next = bridge.connect(room);
+  assert.equal(next.ready, true);
+  bridge.close();
+});
+
 test('approval creates a scoped token; suggestions alone never evaluate or forge investor replies', () => {
   const bridge = createAgentBridge();
   const room = bridge.ensure();

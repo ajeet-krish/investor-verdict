@@ -62,3 +62,17 @@ test('reply audio uses the cookie, turn and role, streams MP3, and reset cancels
   assert.equal(reset.status,200);
   assert.deepEqual(calls,[['audio','owned',3,'interrogator'],['reset-audio','owned'],['reset-panel','owned']]);
 });
+
+test('offer decisions require the live call cookie, reject cross-origin requests, and never use an agent bearer token', async t => {
+  const calls = [];
+  const { base } = await setup(t, { textPanel: { decideOffer: async (body, id) => {
+    calls.push({ body, id }); return { sessionId: id, result: { pendingOffers: [] } };
+  } } });
+  const post = headers => fetch(base + '/api/offer-decision', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ role: 'technical_expert', decision: 'accept', turn: 3 }) });
+  assert.equal((await post({ Authorization: 'Bearer coding-agent-token' })).status, 409);
+  assert.equal((await post({ Cookie: 'verdict_session=owned', Origin: 'https://other.example' })).status, 403);
+  assert.equal(calls.length, 0);
+  assert.equal((await post({ Cookie: 'verdict_session=owned' })).status, 200);
+  assert.equal(calls.length, 1); assert.equal(calls[0].id, 'owned');
+});

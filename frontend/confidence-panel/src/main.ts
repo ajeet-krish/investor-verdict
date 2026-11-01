@@ -6,6 +6,7 @@ import { createRealtimeVoice } from "./realtime-voice";
 import type { VoiceState } from "./realtime-voice";
 import { createReplyPlayer } from "./reply-player";
 import { createCallRoster, playInvestorTurns, validateEvaluation } from "./investor-call";
+import { createOfferChoices } from './offer-choices';
 import type { Evaluation, InvestorRole } from "./investor-call";
 
 /* ---------- Types ---------- */
@@ -212,22 +213,26 @@ function main(): void {
   let interim = "";
   let notice = "";
   let lastTurn = 0;
+  let pendingOffers: InvestorRole[] = [];
+  let acceptedOffer: InvestorRole | null = null;
   let epoch = 0;
   let voiceState: VoiceState = 'off';
   let audioPlaying = false;
   let audioGeneration = 0;
   let bridge: ReturnType<typeof createAgentBridgeUI> | undefined;
   let suggestions: ReturnType<typeof createPitchSuggestions> | undefined;
+  let offerChoices: ReturnType<typeof createOfferChoices> | undefined;
   let speakingName = '';
   const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
     busy = value;
-    for (const control of [send, promptInput]) control.disabled = value || roster.empty;
+    for (const control of [send, promptInput]) control.disabled = value || roster.empty || pendingOffers.length > 0;
     startBtn.disabled = restartBtn.disabled = value;
     resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
-    micBtn.disabled = roster.empty || (value && voiceState === 'off');
+    micBtn.disabled = roster.empty || pendingOffers.length > 0 || (value && voiceState === 'off');
     bridge?.refresh();
     suggestions?.refresh();
+    offerChoices?.refresh();
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
@@ -239,6 +244,7 @@ function main(): void {
     else if (notice) statusEl.textContent = notice;
     else if (audioPlaying) statusEl.textContent = `${speakingName} is speaking. Your microphone is paused.`;
     else if (busy) statusEl.textContent = "The panel is deliberating…";
+    else if (pendingOffers.length) statusEl.textContent = 'Choose Accept offer or Decline to continue. Your microphone is paused.';
     else if (voiceState === 'connecting') statusEl.textContent = 'Connecting live audio… Allow microphone access when asked.';
     else if (voiceState === 'listening') statusEl.textContent = interim ? `Listening… ${interim}` : 'Listening… Pause briefly when you finish your turn.';
     else statusEl.textContent = "";
@@ -281,7 +287,7 @@ function main(): void {
   };
 
   /* One request at a time; no queued requests can leak into a new pitch. */
-  const judge = async (text: string, job?: AgentSubmission): Promise<void> => {
+  const judge = async (text: string, job?: AgentSubmission, decision?: { role: InvestorRole; decision: 'accept' | 'decline' }): Promise<void> => {
     setBusy(true);
     suggestions?.begin();
     const current = epoch;
@@ -295,7 +301,9 @@ function main(): void {
     renderStatus();
     try {
       let before = panel.map(p => p.score);
-      const result = await evaluate(text, before, job);
+      const result = decision
+        ? validateEvaluation(await post('/offer-decision', { ...decision, turn: lastTurn }), SEEDS, before)
+        : await evaluate(text, before, job);
       if (current !== epoch) return;
       bridgeRevision = result.bridgeRevision;
       if (result.turn === 1 && lastTurn > 0) {
@@ -303,10 +311,17 @@ function main(): void {
         addMsg("sys", "Your previous session expired. This pitch starts fresh at 50.");
       }
       lastTurn = result.turn;
+      pendingOffers = result.pendingOffers;
+      acceptedOffer = result.acceptedOffer;
+      offerChoices?.update(pendingOffers);
       panel.forEach((p, i) => (p.score = result.scores[i]));
       roster.begin(result);
       draw(before);
+      panel.forEach(p => {
+        if (result.departureOrder.includes(p.role)) { p.verdict.hidden = false; p.verdict.textContent = 'Saying goodbye'; }
+      });
       if (result.departedRoles.length === panel.length) suggestions?.end();
+      else if (pendingOffers.length) suggestions?.offer();
       else void suggestions?.complete(result.bridgeRevision);
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
       if (!result.speakingOrder.length) showNotice("The panel is listening.");
@@ -336,10 +351,12 @@ function main(): void {
         },
       });
     } catch (err) {
-      suggestions?.failed();
+      if (pendingOffers.length) suggestions?.offer();
+      else suggestions?.failed();
+      offerChoices?.failed();
       const message = err instanceof Error ? err.message : "The panel couldn't respond.";
-      addMsg("sys", `${message} Your text is below so you can retry.`);
-      promptInput.value = text;
+      addMsg("sys", decision ? `${message} Retry the offer decision, or reset if the call expired.` : `${message} Your text is below so you can retry.`);
+      if (!decision) promptInput.value = text;
       voice.stop();
     } finally {
       if (current === epoch) {
@@ -352,14 +369,16 @@ function main(): void {
           bridge?.pauseForHuman();
           app.hidden = true;
           welcome.hidden = false;
-          startBtn.textContent = 'Call ended. Start a new pitch';
+          startBtn.textContent = acceptedOffer ? 'Offer accepted! Start a new pitch' : 'Call ended. Start a new pitch';
           window.scrollTo(0, 0);
         }
+        else if (pendingOffers.length) { voice.pause(); bridge?.pauseForHuman(); }
         else await bridge?.ready(bridgeRevision);
         setBusy(false);
-        if (!roster.empty) voice.resume();
+        if (!roster.empty && !pendingOffers.length) voice.resume();
         renderStatus();
         if (app.hidden) startBtn.focus();
+        else if (pendingOffers.length) offerChoices?.focus();
         else promptInput.focus();
       }
     }
@@ -367,7 +386,7 @@ function main(): void {
 
   const submit = (raw: string, via: "text" | "voice"): void => {
     const text = raw.trim();
-    if (!text || busy || app.hidden || roster.empty) return;
+    if (!text || busy || app.hidden || roster.empty || pendingOffers.length) return;
     if (text.length > 4000) { voice.resume(); showNotice("Please keep your pitch under 4,000 characters."); return; }
     bridge?.pauseForHuman();
     promptInput.value = "";
@@ -398,19 +417,29 @@ function main(): void {
   });
 
   bridge = createAgentBridgeUI(API_URL, {
-    busy: () => busy || roster.empty, active: () => !app.hidden && !roster.empty,
+    busy: () => busy || roster.empty || pendingOffers.length > 0, active: () => !app.hidden && !roster.empty && !pendingOffers.length,
     notice: showNotice,
     submit: async (text, job) => {
-      if (busy || app.hidden || roster.empty) return;
+      if (busy || app.hidden || roster.empty || pendingOffers.length) return;
       addMsg('you agent', text);
       await judge(text, job);
+    },
+  });
+  offerChoices = createOfferChoices(must<HTMLElement>(document, '#offer-choices'), SEEDS, {
+    busy: () => busy || app.hidden,
+    decide: (role, decision) => {
+      if (busy || app.hidden || !pendingOffers.includes(role)) return;
+      bridge?.pauseForHuman();
+      const text = `I ${decision} ${SEEDS.find(s => s.role === role)!.name}'s offer.`;
+      addMsg('you', text);
+      void judge(text, undefined, { role, decision });
     },
   });
   promptInput.addEventListener('input', () => bridge?.pauseForHuman());
   micBtn.setAttribute('aria-label', 'Start live audio');
   micBtn.addEventListener('click', () => {
     if (voice.enabled) { audioGeneration++; voice.stop(); player.stop(); }
-    else if (!busy && !roster.empty) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
+    else if (!busy && !roster.empty && !pendingOffers.length) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
   });
   skipAudio.addEventListener('click', () => player.stop());
   window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); suggestions?.close(); voice.stop(); player.stop(); });
@@ -450,6 +479,7 @@ function main(): void {
         throw new Error("The session could not be reset. Please try again.");
       }
       bridge?.reset();
+      pendingOffers = []; acceptedOffer = null; offerChoices?.update([]);
       panel.forEach(p => (p.score = 50));
       roster.reset();
       lastTurn = 0;
@@ -499,9 +529,9 @@ function main(): void {
   }, 1000);
 
   suggestions = createPitchSuggestions(API_URL, {
-    busy: () => busy || roster.empty,
+    busy: () => busy || roster.empty || pendingOffers.length > 0,
     attach: text => {
-      if (busy || app.hidden || roster.empty) return;
+      if (busy || app.hidden || roster.empty || pendingOffers.length) return;
       bridge?.pauseForHuman();
       voice.stop();
       promptInput.value = text;

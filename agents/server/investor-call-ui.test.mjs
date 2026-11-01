@@ -8,7 +8,7 @@ const seeds = PANEL.map(p => ({ role: p.key, name: p.title }));
 const roles = seeds.map(p => p.role);
 function result(count = 4) {
   const departures = roles.slice(0, count);
-  return { turn: 3, scores: roles.map(r => departures.includes(r) ? 0 : 50),
+  return { turn: 3, event: 'pitch', decision: null, gameOver: false, acceptedOffer: null, offerOrder: [], pendingOffers: [], scores: roles.map(r => departures.includes(r) ? 0 : 50),
     responses: seeds.map(s => ({ role: s.role, panelist: s.name, spoke: true, reply: "I'm passing and leaving." })),
     departureOrder: departures, departedRoles: departures, speakingOrder: roles };
 }
@@ -139,4 +139,29 @@ test('reduced motion skips the collapse animation', async t => {
   await v.roster.leave(roles[0]);
   assert.equal(v.tiles[0].el.hidden, true);
   assert.equal(v.grid.dataset.count, '3');
+});
+
+test('offer turns stay visible for a choice; decline removes only the chosen investor at 100', async () => {
+  const offered = { ...result(0), scores: [100, 100, 100, 100], offerOrder: roles, pendingOffers: roles };
+  validateEvaluation(offered, seeds, [90, 90, 90, 90]);
+  const v = view(); v.roster.begin(offered);
+  assert.equal(v.grid.dataset.count, '4');
+  const declined = { ...offered, turn: 4, event: 'offer-declined', decision: { role: roles[0], choice: 'decline' },
+    departureOrder: [roles[0]], departedRoles: [roles[0]], offerOrder: [], pendingOffers: roles.slice(1), speakingOrder: [roles[0]],
+    responses: offered.responses.map((r, i) => ({ ...r, spoke: i === 0, reply: i === 0 ? 'Goodbye.' : '' })) };
+  validateEvaluation(declined, seeds, offered.scores);
+  v.roster.begin(declined);
+  assert.equal(v.tiles[0].el.hidden, false, 'Decliner must still hear the farewell');
+  await v.roster.leave(roles[0]);
+  assert.equal(v.grid.dataset.count, '3');
+  const invalid = { ...declined, scores: [0, 100, 100, 100] };
+  assert.throws(() => validateEvaluation(invalid, seeds, offered.scores), /Unexpected/, 'Decline cannot lower confidence');
+});
+
+test('accepted offer allows all remaining investors to close at unchanged scores and ends the game', () => {
+  const accepted = { ...result(), scores: [100, 70, 80, 100], event: 'offer-accepted',
+    gameOver: true, acceptedOffer: roles[0], decision: { role: roles[0], choice: 'accept' } };
+  validateEvaluation(accepted, seeds, accepted.scores);
+  assert.throws(() => validateEvaluation({ ...accepted, acceptedOffer: roles[3] }, seeds, accepted.scores), /Unexpected/);
+  assert.throws(() => validateEvaluation({ ...accepted, pendingOffers: [roles[3]] }, seeds, accepted.scores), /Unexpected/);
 });

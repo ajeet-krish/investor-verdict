@@ -5,6 +5,12 @@ export interface Evaluation {
   speakingOrder: InvestorRole[];
   departureOrder: InvestorRole[];
   departedRoles: InvestorRole[];
+  offerOrder: InvestorRole[];
+  pendingOffers: InvestorRole[];
+  event: 'pitch' | 'offer-accepted' | 'offer-declined';
+  decision: { role: InvestorRole; choice: 'accept' | 'decline' } | null;
+  gameOver: boolean;
+  acceptedOffer: InvestorRole | null;
   turn: number;
   bridgeRevision?: number;
 }
@@ -24,11 +30,31 @@ export function validateEvaluation(raw: unknown, seeds: { role: InvestorRole; na
   const newlyOut = seeds.filter((_, i) => data.scores[i] === 0 && (data.turn === 1 ? 50 : current[i]) > 0).map(s => s.role);
   const sameRoles = (actual: InvestorRole[], expected: InvestorRole[]) => Array.isArray(actual) &&
     actual.length === expected.length && new Set(actual).size === actual.length && actual.every(r => expected.includes(r));
-  if (!sameRoles(data.departedRoles, zeros) || !sameRoles(data.departureOrder, newlyOut) ||
+  const validRoles = (actual: InvestorRole[]) => Array.isArray(actual) && new Set(actual).size === actual.length && actual.every(r => seeds.some(s => s.role === r));
+  if (![data.departedRoles, data.departureOrder, data.offerOrder, data.pendingOffers].every(validRoles) ||
+      !['pitch', 'offer-accepted', 'offer-declined'].includes(data.event) || typeof data.gameOver !== 'boolean') throw new Error('Unexpected offer state.');
+  const score = (role: InvestorRole) => data.scores[seeds.findIndex(s => s.role === role)];
+  const expectedOffers = seeds.filter((s, i) => data.scores[i] === 100 && !data.departedRoles.includes(s.role)).map(s => s.role);
+  const newlyOffered = seeds.filter((s, i) => data.scores[i] === 100 && (data.turn === 1 ? 50 : current[i]) < 100 && !data.departedRoles.includes(s.role)).map(s => s.role);
+  const mandatory = [...data.departureOrder, ...data.offerOrder];
+  const accepted = data.event === 'offer-accepted';
+  if (!zeros.every(r => data.departedRoles.includes(r)) ||
+      (!accepted && data.departedRoles.some(r => score(r) !== 0 && score(r) !== 100)) ||
+      !sameRoles(data.pendingOffers, expectedOffers) ||
+      !data.departureOrder.every(r => data.departedRoles.includes(r)) ||
+      data.gameOver !== accepted ||
+      (accepted ? data.acceptedOffer !== data.decision?.role : data.acceptedOffer !== null) ||
+      (data.event === 'pitch'
+        ? data.decision !== null || !sameRoles(data.departureOrder, newlyOut) || !sameRoles(data.offerOrder, newlyOffered) || data.departedRoles.some(r => score(r) !== 0 && score(r) !== 100)
+        : !data.decision || score(data.decision.role) !== 100 || data.decision.choice !== (accepted ? 'accept' : 'decline') ||
+          data.scores.some((s, i) => s !== current[i]) || data.offerOrder.length !== 0 ||
+          (accepted ? data.departedRoles.length !== seeds.length || data.departureOrder[0] !== data.decision.role
+            : !sameRoles(data.departureOrder, [data.decision.role]))) ||
       !sameRoles(data.speakingOrder, speakers.map(r => r.role)) ||
-      data.speakingOrder.length - data.departureOrder.length > 2 ||
-      !data.departureOrder.every((r, i) => data.speakingOrder[i] === r) ||
-      speakers.some(r => zeros.includes(r.role) && !data.departureOrder.includes(r.role))) {
+      new Set(mandatory).size !== mandatory.length ||
+      data.speakingOrder.length - mandatory.length > (data.event === 'pitch' ? 2 : 0) ||
+      !mandatory.every((r, i) => data.speakingOrder[i] === r) ||
+      speakers.some(r => data.departedRoles.includes(r.role) && !data.departureOrder.includes(r.role))) {
     throw new Error('Unexpected investor speaker or departure.');
   }
   return data;

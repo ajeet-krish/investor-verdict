@@ -8,7 +8,7 @@ const env = { ELEVENLABS_API_KEY: 'test-only', ...Object.fromEntries(PANEL.map(r
 const pitch = { pitch: 'Our customer interviews found a recurring reporting problem.', panelists: PANEL.map(r => r.title), scores: [62, 41, 78, 55] };
 const willing = (priority = 70) => ({ wants_turn: true, priority, reason: 'A new relevant question.' });
 const pass = { wants_turn: false, priority: 0, reason: 'Nothing useful to add.' };
-function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false, scoreChange = 5 } = {}) {
+function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false, speechReply = () => undefined, scoreChange = 5 } = {}) {
   const configs = [], ended = [], sent = [], blockedScores = [];
   let releaseSpeech;
   return { configs, ended, sent, blockedScores, finishSpeech: () => releaseSpeech(), startSession: async config => {
@@ -38,10 +38,10 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
           blockedScores.push(JSON.parse(config.clientTools.report_investor_interest({ turn_number: scoreTurn + 1, confidence: 90, reason: 'Must be rejected in speak phase.' })));
           if (failSpeech) return config.onError();
           const finish = () => {
-            config.onMessage({ source: 'ai', message: JSON.stringify({ reply: packet.departure ? "I'm passing because customers haven't been validated. I'm leaving the call." : `${role.key}: Which customers have paid?`, concern: packet.confidence === 0 || packet.confidence === 100 ? null : 'Which customers have paid?' }) });
+            config.onMessage({ source: 'ai', message: speechReply(packet) ?? JSON.stringify({ reply: packet.closing ? (packet.offer_decision === 'accept' ? 'Congratulations and good luck!' : 'I respect your decision. Goodbye.') : packet.offer ? 'I would like to invest. Please accept or decline my offer.' : packet.departure ? "I'm passing because customers haven't been validated. I'm leaving the call." : `${role.key}: Which customers have paid?`, concern: packet.closing || packet.confidence === 0 || packet.confidence === 100 ? null : 'Which customers have paid?' }) });
             config.onIncomingEvent({ type: 'agent_response_complete' });
           };
-          if (holdSpeech) releaseSpeech = finish;
+          if (typeof holdSpeech === 'function' ? holdSpeech(packet) : holdSpeech) releaseSpeech = finish;
           else queueMicrotask(finish);
         }
       },
@@ -234,20 +234,97 @@ test('a failed assessment preserves its existing concern and score while other i
   } finally { await service.close(); }
 });
 
-test('terminal investors stop bidding, and their old replies are not replayed', async () => {
-  const sdk = fakeSdk({ scoreChange: 20 });
+test('all four investors at 100 get offers despite passing, then acceptance closes everyone without double scoring', async () => {
+  const sdk = fakeSdk({ scoreChange: 20, bid: () => pass });
   const service = makeService(sdk);
   try {
     const first = await service.evaluate(pitch);
     await service.evaluate(pitch, first.sessionId);
-    await service.evaluate(pitch, first.sessionId);
+    const third = await service.evaluate(pitch, first.sessionId);
+    assert.deepEqual(third.result.offerOrder, PANEL.map(p => p.key));
+    assert.deepEqual(third.result.speakingOrder, third.result.offerOrder);
+    assert.deepEqual(third.result.pendingOffers, third.result.offerOrder);
+    assert.deepEqual(third.result.departedRoles, []);
     const count = sdk.sent.length;
-    const { result } = await service.evaluate(pitch, first.sessionId);
+    await assert.rejects(service.evaluate(pitch, first.sessionId), /Accept or decline/);
     assert.equal(sdk.sent.length, count);
-    assert.equal(result.speaker, null);
-    assert.deepEqual(result.speakingOrder, []);
+    const chosen = 'interrogator';
+    const { result } = await service.decideOffer({ role: chosen, decision: 'accept', turn: 3 }, first.sessionId);
+    assert.equal(result.gameOver, true);
+    assert.equal(result.acceptedOffer, chosen);
+    assert.equal(result.speakingOrder[0], chosen);
+    assert.equal(result.speakingOrder.length, 4);
+    assert.deepEqual(result.pendingOffers, []);
     assert.deepEqual(result.scores, [100, 100, 100, 100]);
-    assert.ok(result.responses.every(r => r.reply === ''));
+    assert.deepEqual(result.departureOrder, result.speakingOrder);
+    assert.equal(sdk.sent.filter(s => s.packet.phase === 'assess').length, 12);
+    for (const role of result.speakingOrder) assert.match(service.getSpeech(first.sessionId, 4, role).text, /good luck/);
+    await assert.rejects(service.evaluate(pitch, first.sessionId), /game has ended/);
+    await assert.rejects(service.decideOffer({ role: chosen, decision: 'accept', turn: 3 }, first.sessionId), { status: 409 });
+  } finally { await service.close(); }
+});
+
+test('declining an offer says goodbye and removes only that investor, then the game continues', async () => {
+  const sdk = fakeSdk({ scoreChange: role => role === 'technical_expert' ? 20 : 0,
+    bid: role => role === 'technical_expert' ? pass : willing(90) });
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    await service.evaluate(pitch, first.sessionId);
+    const offered = await service.evaluate(pitch, first.sessionId);
+    assert.equal(offered.result.speakingOrder[0], 'technical_expert');
+    assert.equal(offered.result.speakingOrder.length, 3, 'Offer is extra to two ordinary speakers');
+    const declined = await service.decideOffer({ role: 'technical_expert', decision: 'decline', turn: 3 }, first.sessionId);
+    assert.equal(declined.result.gameOver, false);
+    assert.deepEqual(declined.result.departureOrder, ['technical_expert']);
+    assert.deepEqual(declined.result.scores, [100, 50, 50, 50]);
+    assert.deepEqual(declined.result.pendingOffers, []);
+    const next = await service.evaluate(pitch, first.sessionId);
+    assert.equal(next.result.turn, 5);
+    assert.ok(!next.result.speakingOrder.includes('technical_expert'));
+    assert.deepEqual(next.result.departedRoles, ['technical_expert']);
+    assert.ok(sdk.sent.filter(s => s.packet.round === 5).every(s => s.role !== 'technical_expert'));
+  } finally { await service.close(); }
+});
+
+test('multiple offers stay pending after one decline; acceptance excludes earlier departures', async () => {
+  const sdk = fakeSdk({ scoreChange: role => role === 'technical_expert' ? -20 : 20, bid: () => pass });
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    await service.evaluate(pitch, first.sessionId);
+    const offered = await service.evaluate(pitch, first.sessionId);
+    assert.deepEqual(offered.result.departureOrder, ['technical_expert']);
+    assert.equal(offered.result.offerOrder.length, 3);
+    assert.equal(offered.result.speakingOrder.length, 4);
+    await service.decideOffer({ role: 'market_signals_researcher', decision: 'decline', turn: 3 }, first.sessionId);
+    await assert.rejects(service.evaluate(pitch, first.sessionId), /Accept or decline/);
+    const accepted = await service.decideOffer({ role: 'sympathizer', decision: 'accept', turn: 4 }, first.sessionId);
+    assert.deepEqual(accepted.result.speakingOrder, ['sympathizer', 'interrogator']);
+    assert.equal(accepted.result.departedRoles.length, 4);
+    assert.equal(accepted.result.gameOver, true);
+  } finally { await service.close(); }
+});
+
+test('invalid, stale, duplicate and concurrent offer decisions cannot trigger extra paid closing statements', async () => {
+  const sdk = fakeSdk({ scoreChange: role => role === 'technical_expert' ? 20 : 0, bid: () => pass, holdSpeech: packet => packet.closing });
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    await service.evaluate(pitch, first.sessionId); await service.evaluate(pitch, first.sessionId);
+    const body = { role: 'technical_expert', decision: 'decline', turn: 3 }, count = sdk.sent.length;
+    await assert.rejects(service.decideOffer(body, 'wrong-session'), { status: 409 });
+    await assert.rejects(service.decideOffer({ ...body, turn: 2 }, first.sessionId), { status: 409 });
+    await assert.rejects(service.decideOffer({ ...body, role: 'sympathizer' }, first.sessionId), { status: 409 });
+    await assert.rejects(service.decideOffer({ ...body, decision: 'maybe' }, first.sessionId), { status: 400 });
+    assert.equal(sdk.sent.length, count);
+    const pending = service.decideOffer(body, first.sessionId);
+    await setImmediate();
+    await assert.rejects(service.decideOffer(body, first.sessionId), { status: 409 });
+    await assert.rejects(service.evaluate(pitch, first.sessionId), { status: 409 });
+    sdk.finishSpeech(); await pending;
+    await assert.rejects(service.decideOffer(body, first.sessionId), { status: 409 });
+    assert.equal(sdk.sent.length, count + 1);
   } finally { await service.close(); }
 });
 
@@ -328,5 +405,31 @@ test('all four may volunteer but only two speak, with the full exchange shared n
     await service.evaluate(pitch, first.sessionId);
     const assessments = sdk.sent.filter(s => s.packet.round === 2 && s.packet.phase === 'assess');
     assert.ok(assessments.every(s => s.packet.previous_exchange.responses.length === 2));
+  } finally { await service.close(); }
+});
+
+
+test('a bid returned during speech is corrected once without rescoring or selecting another investor', async () => {
+  const sdk = fakeSdk({ speechReply: packet => packet.correction ? undefined : JSON.stringify(pass) });
+  const service = makeService(sdk);
+  try {
+    const { result } = await service.evaluate(pitch);
+    assert.deepEqual(result.scores, [60, 60, 60, 60]);
+    assert.equal(result.speakingOrder.length, 2);
+    const grants = sdk.sent.filter(s => s.packet.phase === 'speak');
+    assert.equal(grants.length, 4);
+    assert.equal(grants[0].role, grants[1].role);
+    assert.equal(grants[0].packet.round, grants[1].packet.round);
+    assert.ok(grants[1].packet.correction);
+    assert.deepEqual(Object.keys(grants[1].packet.required_response_fields), ['reply', 'concern']);
+  } finally { await service.close(); }
+});
+
+test('speech correction is bounded and does not fabricate a final statement', async () => {
+  const sdk = fakeSdk({ speechReply: () => JSON.stringify(pass) });
+  const service = makeService(sdk);
+  try {
+    await assert.rejects(service.evaluate(pitch), /invalid public reply after one correction/);
+    assert.equal(sdk.sent.filter(s => s.packet.phase === 'speak').length, 2);
   } finally { await service.close(); }
 });
