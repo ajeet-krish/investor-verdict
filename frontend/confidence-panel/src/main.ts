@@ -243,6 +243,14 @@ function main(): void {
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
+    const speaker = panel.find(p => p.role === role);
+    if (speaker) {
+      speaker.el.append(replyAudio, skipAudio);
+      replyAudio.setAttribute('aria-label', `${speaker.name} voice reply`);
+    } else {
+      replyAudio.hidden = true;
+      skipAudio.hidden = true;
+    }
   };
 
   /* end-of-call result card; the roster shows it once every tile has left */

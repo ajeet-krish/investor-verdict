@@ -133,3 +133,7 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 .pitch-option:disabled{opacity:.5;cursor:default}
 .pitch-title{display:block;font-size:12px;font-weight:600;color:#1f6b3b;margin-bottom:7px}
 .pitch-copy{display:block;font-size:13px;line-height:1.5}
+
+/* Playback belongs to the investor currently speaking. */
+.t #reply-audio{position:absolute;top:44px;right:40px;width:min(190px,calc(100% - 56px));height:32px;margin:0;z-index:3}
+.t #skip-audio{position:absolute;top:82px;right:40px;margin:0;padding:4px 8px;font-size:11px;z-index:3}
