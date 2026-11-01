@@ -30,6 +30,8 @@ interface Panelist extends Seed {
   fill: HTMLElement;
   value: HTMLElement;
   chip: HTMLElement;
+  change: HTMLElement;
+  verdict: HTMLElement;
 }
 
 /* ---------- Config ---------- */
@@ -155,8 +157,11 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
   el.className = "t";
   el.style.backgroundColor = seed.bg;
   el.innerHTML = `
-    <div class="rd"><div class="v">0</div><div class="c">confidence</div></div>
-    <div class="chip"></div>
+    <div class="chip" role="meter" aria-label="${seed.name} confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+      <span class="score-label">Confidence</span>
+      <span class="score-line"><strong class="v">50</strong><span class="score-total">/100</span><span class="score-change" hidden></span></span>
+      <span class="score-verdict" hidden></span>
+    </div>
     <div class="ctl">
       <label>Add photo<input type="file" accept="image/*" /></label>
       <button class="rm" type="button">Reset photo</button>
@@ -174,6 +179,8 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
     fill: must<HTMLElement>(el, ".fl"),
     value: must<HTMLElement>(el, ".v"),
     chip: must<HTMLElement>(el, ".chip"),
+    change: must<HTMLElement>(el, ".score-change"),
+    verdict: must<HTMLElement>(el, ".score-verdict"),
   };
 
   const input = must<HTMLInputElement>(el, "input");
@@ -264,14 +271,21 @@ function main(): void {
   };
 
   /* scores */
-  const draw = (): void => {
-    for (const p of panel) {
+  const draw = (previous?: number[]): void => {
+    panel.forEach((p, i) => {
       const v = Math.round(p.score);
+      const delta = previous ? v - previous[i] : null;
       p.fill.style.height = `${v}%`;
       p.fill.style.backgroundColor = colorFor(v);
       p.value.textContent = String(v);
-      p.chip.textContent = v === 0 ? "Passed · 0" : v === 100 ? "Simulated offer · 100" : `Confidence ${v}`;
-    }
+      p.chip.setAttribute('aria-valuenow', String(v));
+      p.chip.setAttribute('aria-valuetext', `${v} out of 100${delta === null ? '' : `, ${signed(delta)} points this turn`}`);
+      p.change.hidden = delta === null;
+      p.change.textContent = delta === null ? '' : signed(delta);
+      p.change.dataset.direction = delta === null || delta === 0 ? 'same' : delta > 0 ? 'up' : 'down';
+      p.verdict.hidden = v !== 0 && v !== 100;
+      p.verdict.textContent = v === 0 ? 'Passed' : v === 100 ? 'Simulated offer' : '';
+    });
   };
 
   /* chat log */
@@ -306,7 +320,7 @@ function main(): void {
       }
       lastTurn = result.turn;
       panel.forEach((p, i) => (p.score = result.scores[i]));
-      draw();
+      draw(before);
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
       if (!result.speakingOrder.length) showNotice("The panel is listening.");
       for (const role of result.speakingOrder) {

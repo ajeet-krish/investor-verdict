@@ -9,6 +9,14 @@ Branch: `test/investor-integration`, local experiment, not merged into main
 
 See [CODING_AGENT_PIPELINE.md](../docs/CODING_AGENT_PIPELINE.md). The app now owns the bridge approval and polls for suggestions, then uses the existing evaluation and audio flow. Human typing or starting voice pauses automatic agent control. The backend ties suggestions to the owner cookie and conversation revision. Keep these guards when redesigning the UI.
 
+## Latest pull and visible scores
+
+On November 1, fetched all remote branches, fast-forward checked `test/investor-integration`, and merged `origin/main` at `00130b0` into this test branch. The incoming main changes were documentation/environment examples only; no newer frontend layout was published in the fetched branches. The original dirty `investor-verdict` checkout was left untouched.
+
+The available frontend now shows a persistent **score out of 100** on every investor tile, with the latest turn's positive, negative or unchanged delta. These are the authoritative `/api/evaluate` values for text, voice and coding-agent submissions. Scores stay visible when photos are hidden; initial/reset state is 50 with no stale delta. Each badge is an accessible meter, and terminal labels remain Passed/Simulated offer.
+
+Validation: TypeScript/build and all 50 tests pass. Browser verification showed all four scores at 50/100, both with and without portraits. The app is left open for the user's live test at http://127.0.0.1:5173. No paid investor call was made for this display change. Screenshot: `agents/confidence-scores-ready.png`.
+
 ## Current behavior
 
 The text baseline was merged through PR #3, closing issue #4. This test branch adds live microphone transcription, streamed investor voices, and multiple voluntary replies per founder message. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for setup and validation. Do not merge or deploy this experiment without a user request.
