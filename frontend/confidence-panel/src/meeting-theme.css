@@ -99,9 +99,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .cb { width: 23px; right: 8px; top: 12px; bottom: 12px; font-size: 8px; color: #fff; text-shadow: 0 1px 3px #000; }
 .tr { width: 5px; background: #13151b90; }
 .t.responding { outline-color: #bba4ff; box-shadow: 0 0 18px #a98cf52a; }
-.t.responding .nm::after { color: #d0beff; }
+.t.responding::after { color: #d0beff; }
 .t.leaving.responding { outline-color: #ff9995; }
-.t.leaving.responding .nm::after { color: #ff9995; }
+.t.leaving.responding::after { color: #ff9995; }
 .chatbox { background: #20212d; border: 1px solid #ffffff0e; border-radius: 10px; padding: 12px; margin-top: 14px; }
 .transcript-heading { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #c9c6d8; margin-bottom: 10px; }
 .transcript-heading span:last-child { font-size: 9px; color: #9895ad; }
