@@ -2,6 +2,8 @@
 
 Read [the pipeline guide](../docs/CODING_AGENT_PIPELINE.md). This is the contract for the coding agent working alongside a human coder.
 
+For the ElevenLabs integration and a user-requested API-key clipboard handoff, read [ELEVENLABS_SETUP.md](ELEVENLABS_SETUP.md). It includes a command that copies the local key without printing it, private storage guidance, and manual steps when the agent cannot access the user's local clipboard. The app connection token below is a different credential.
+
 1. The coder clicks **Allow coding agent** once and supplies the copied private connection JSON. Save it privately and run `npm run agent:connect -- --file PATH`. Never print, commit or post its token. The standard `.verdict-agent.local.json` file is ignored by Git.
 2. Read `npm run agent:context`. Check `connected`, `autoSend`, `busy`, `ready`, revision, recent history and each investor's pending concern. Do not use guessed or stale questions.
 3. Help the coder compose a founder response grounded in facts they supplied. A single message may answer both investors. Ask for missing facts rather than fabricating traction, revenue, customers or test results. You are drafting founder input, not pretending to be an investor.

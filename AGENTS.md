@@ -1,5 +1,8 @@
 # investor-verdict
 
+## ElevenLabs setup and key handoff
+Read [agents/ELEVENLABS_SETUP.md](agents/ELEVENLABS_SETUP.md) for the configured agents, app branches, voice pipeline, startup and tests. When the user requests their ElevenLabs key, follow its local clipboard handoff: read the ignored `.env`, pipe only `ELEVENLABS_API_KEY` to the user's local clipboard without printing it, and keep storage private. If local clipboard access is unavailable, give the documented local/manual steps. A cloud clipboard is not the user's clipboard. Never commit the key or substitute a live-app connection token for it.
+
 ## Starter pitches and transcript-based follow-ups
 The right sidebar starts with three hardcoded fictional product pitches (PantryPal, BorrowBox, StudySprint). Their fixed scenario facts live in `agents/server/practice-cases.mjs`: named fictional interviewees, counts, prices, paid pilot results, technical limits, costs and next steps. The server pins the chosen case to the call so it survives transcript truncation; Reset clears it. Use these supplied facts consistently for roleplay, never as claims about real people or businesses. Unknown facts should produce a complete admission and next step, not placeholders.
 
@@ -9,7 +12,7 @@ After a completed investor round, `pitch-suggestions.ts` requests three cards fr
 Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.
 
 ## Current integration
-The user authorized merging `test/investor-integration` into `main` on November 1, 2026. The current implementation includes the Working_MVP layout, visible confidence scores, real-time founder transcription, sequential investor speech and the coding-agent bridge. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) and [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md). The separate Render deployment has not been integrated or verified for these endpoints.
+The user authorized merging `test/investor-integration` into `main` on November 1, 2026. The current implementation includes the Working_MVP layout, visible confidence scores, real-time founder transcription, sequential investor speech and the coding-agent bridge. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) and [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md). The Render adapter includes the offer and coaching endpoints and passed local route checks; the hosted deployment has not been verified.
 
 Investor replies use plain language, usually 10-20 words and one simple question, aiming for under roughly 10 seconds per investor without a hard audio cutoff. These prompts are saved on the isolated ElevenLabs branches in `agents/panel-test-branches.json`; provider main prompts and default traffic remain unchanged.
 
