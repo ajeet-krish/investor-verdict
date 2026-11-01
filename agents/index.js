@@ -1,3 +1,4 @@
+import { createInterestController } from '../visuals/confidence/interest-controller.mjs';
 import { PERSONAS, START_SCORES } from "./config.js";
 import { createEmitter } from "./event-emitter.js";
 import { apply, createConfidenceEngine, scoreTurn } from "./confidence-engine.js";
@@ -16,10 +17,26 @@ export function createInvestorCall(options) {
     const engineState = createConfidenceEngine(startScores);
     const bus = createEmitter();
 
+    const roleKeys = { cto: 'market_signals_researcher', tech_bro: 'technical_expert', interrogator: 'interrogator', sympathizer: 'sympathizer' };
+    let interest = createInterestController();
     let client = null;
     let clientKind = null;
     let started = false;
     let pendingEchoSuppress = 0;
+
+    interest.subscribe((states, event) => {
+        if (!event || clientKind !== 'live') return;
+        for (const [id, key] of Object.entries(roleKeys)) {
+            engineState.scores[id] = states.find(state => state.key === key).confidence;
+        }
+        const id = Object.keys(roleKeys).find(id => roleKeys[id] === event.investor.key);
+        bus.emit('score', { scores: currentScores(), results: { [id]: { reason: event.investor.reason } } });
+        if (event.left || event.offered) {
+            const type = event.left ? 'leave' : 'offer';
+            engineState.outcome[id] = type;
+            bus.emit(type, withDeal({ agentId: id, score: event.investor.confidence, reason: event.investor.reason }));
+        }
+    });
 
     function currentScores() {
         return { ...engineState.scores };
@@ -41,6 +58,7 @@ export function createInvestorCall(options) {
         if (!input.trim()) {
             return { scores: currentScores(), events: [] };
         }
+        if (clientKind === 'live') return { scores: currentScores(), events: [] };
         const results = scoreTurn(input, engineState);
         const events = apply(engineState, results);
         bus.emit("score", { scores: currentScores(), results, input });
@@ -103,6 +121,7 @@ export function createInvestorCall(options) {
             agentIds,
             getSignedUrl,
             textOnly,
+            clientToolsFor: id => interest.clientToolsFor(roleKeys[id]),
             onTranscript: wired.onTranscript,
             onSpeaking: wired.onSpeaking,
             onStatus: wired.onStatus,
@@ -157,7 +176,12 @@ export function createInvestorCall(options) {
             await client.stop();
         }
         client = null;
+        interest.close();
         bus.emit("status", { agentId: "all", status: "stopped", at: Date.now() });
+    }
+
+    function setMicMuted(muted) {
+        client?.setMicMuted?.(muted);
     }
 
     function setActiveAgent(agentId) {
@@ -227,6 +251,7 @@ export function createInvestorCall(options) {
         start,
         stop,
         setActiveAgent,
+        setMicMuted,
         simulateUtterance,
         onScoreUpdate,
         onLeave,

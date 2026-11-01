@@ -15,7 +15,7 @@ export const START_SCORES = {
 export const PERSONAS = {
     cto: {
         id: "cto",
-        displayName: "CTO",
+        displayName: "Market Signals Researcher",
         archetype: "Market and Finance",
         voiceIntent: "Calm, commercial, direct. Probes TAM, pricing, and paid traction.",
         judgingCriteria: {
@@ -40,7 +40,7 @@ export const PERSONAS = {
     },
     tech_bro: {
         id: "tech_bro",
-        displayName: "Tech Bro",
+        displayName: "Technical Expert",
         archetype: "Skeptic VC",
         voiceIntent: "Fast, playful, blunt. Loves novel builds, scale talk, and tradeoffs.",
         judgingCriteria: {

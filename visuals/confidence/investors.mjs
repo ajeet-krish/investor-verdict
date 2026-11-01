@@ -33,4 +33,3 @@ export const INVESTORS = Object.freeze([
     "portrait": "../investors/04_sympathizer.png"
   }
 ].map(Object.freeze));
-

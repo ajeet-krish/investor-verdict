@@ -15,14 +15,16 @@ export function createLiveClient(options) {
     const onStatus = opts.onStatus || function noopStatus() {};
     const onError = opts.onError || function noopError() {};
 
+    const clientToolsFor = opts.clientToolsFor || (() => ({}));
     const sessions = new Map();
+    const terminal = new Set();
     let micStream = null;
     let running = false;
     let activeSpeaker = null;
     let lastSpokeAt = 0;
     let speakQueue = [];
     let retryCount = 0;
-    let ConversationRef = null;
+    let ConversationRef = opts.Conversation || null;
     let activeAgentHint = null;
     let flushTimerIds = [];
     let founderTurn = 0;
@@ -139,7 +141,7 @@ export function createLiveClient(options) {
         }
         if (typeof session.setVolume === "function") {
             try {
-                session.setVolume(targetVolume);
+                session.setVolume({ volume: targetVolume });
                 return true;
             } catch (errVolume) {
                 void errVolume;
@@ -249,6 +251,13 @@ export function createLiveClient(options) {
             onSpeaking({ agentId, speaking: true, at: now() });
             applyAudioGate();
         } else {
+            if (terminal.has(agentId)) {
+                const session = sessions.get(agentId);
+                sessions.delete(agentId);
+                speakQueue = speakQueue.filter(entry => entry.agentId !== agentId);
+                if (primaryAgentId === agentId) primaryAgentId = sessions.keys().next().value || null;
+                if (session) session.endSession().catch(() => {});
+            }
             const wasActive = activeSpeaker === agentId;
             if (wasActive) {
                 activeSpeaker = null;
@@ -303,19 +312,8 @@ export function createLiveClient(options) {
         return ConversationRef;
     }
 
-    async function resolveMic() {
-        if (textOnly) {
-            return null;
-        }
-        if (micStream) {
-            return micStream;
-        }
-        if (typeof navigator === "undefined" || !navigator.mediaDevices) {
-            return null;
-        }
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        return micStream;
-    }
+    // The current SDK owns its microphone stream. It does not accept userMediaStream.
+    async function resolveMic() {}
 
     async function endPartialSessions() {
         const entries = Array.from(sessions.entries());
@@ -342,14 +340,30 @@ export function createLiveClient(options) {
         const baseConfig = signedUrl
             ? { signedUrl }
             : { agentId: agentValue };
+        const handlers = clientToolsFor(agentId);
         const session = await Conversation.startSession({
             ...baseConfig,
-            ...(micStream ? { userMediaStream: micStream } : {}),
+            connectionType: 'websocket',
+            textOnly,
+            clientTools: {
+                ...handlers,
+                report_investor_interest: payload => {
+                    const result = handlers.report_investor_interest(payload);
+                    const accepted = JSON.parse(result);
+                    if (accepted.accepted && (accepted.confidence === 0 || accepted.confidence === 100)) {
+                        terminal.add(agentId);
+                        // Let the result and closing verdict finish before ending the session.
+                        const timer = setTimeout(() => setSpeaking(agentId, false), 20000);
+                        flushTimerIds.push(timer);
+                    }
+                    return result;
+                },
+            },
             onMessage: function onMsg(msg) {
                 const kind = msg && (msg.type || msg.source || "");
                 const text = (msg && (msg.text || msg.message || "")) || "";
-                if (kind === "user_transcript" || msg.isFinal === true || kind === "user") {
-                    handleUserTextFromSession(agentId, text, msg.isFinal !== false);
+                if (kind === "user_transcript" || msg?.isFinal === true || kind === "user") {
+                    handleUserTextFromSession(agentId, text, msg?.isFinal !== false);
                 } else if (kind === "agent_response" || kind === "agent") {
                     handleAgentText(agentId, text);
                 } else if (text) {
@@ -371,6 +385,7 @@ export function createLiveClient(options) {
                 onError({ agentId, error: err, at: now() });
             },
         });
+        if (!running) { await session.endSession(); throw new Error('Call cancelled.'); }
         sessions.set(agentId, session);
         if (primaryAgentId === null) {
             primaryAgentId = agentId;
@@ -388,11 +403,12 @@ export function createLiveClient(options) {
             const Conversation = await loadSdk();
             await resolveMic();
             const usable = AGENT_ORDER.filter(function hasId(k) { return Boolean(agentIds[k]); });
-            if (usable.length === 0) {
-                throw new Error("Missing agentIds map, provide 4 public agent IDs");
+            if (usable.length !== 4) {
+                throw new Error("Missing investor IDs. Check the root .env file.");
             }
             primaryAgentId = null;
             for (let i = 0; i < usable.length; i += 1) {
+                if (!running) throw new Error('Call cancelled.');
                 const key = usable[i];
                 await startOneSession(Conversation, key, agentIds[key]);
             }
@@ -400,13 +416,6 @@ export function createLiveClient(options) {
             onStatus({ agentId: "all", status: "live", at: now() });
             return { ok: true, agents: usable };
         } catch (err) {
-            if (retryCount < 1) {
-                retryCount += 1;
-                await endPartialSessions();
-                running = false;
-                await new Promise(function wait(res) { setTimeout(res, 800); });
-                return start();
-            }
             await endPartialSessions();
             running = false;
             onError({ agentId: "all", error: err, fallbackToMock: true, at: now() });
@@ -479,24 +488,18 @@ export function createLiveClient(options) {
     async function sendUserText(text) {
         const input = String(text || "");
         handleUserText(input, true);
-        if (activeAgentHint && sessions.has(activeAgentHint)) {
-            const hinted = sessions.get(activeAgentHint);
-            if (trySendText(hinted, input)) {
-                return;
-            }
+        for (const [id, session] of sessions) {
+            if (!terminal.has(id)) trySendText(session, input);
         }
-        const entries = Array.from(sessions.entries());
-        for (let i = 0; i < entries.length; i += 1) {
-            const session = entries[i][1];
-            if (trySendText(session, input)) {
-                break;
-            }
-        }
+    }
+
+    function setMicMuted(muted) {
+        for (const session of sessions.values()) session.setMicMuted?.(Boolean(muted));
     }
 
     function getState() {
         return { running, activeSpeaker, activeAgentHint, sessionCount: sessions.size, retryCount, founderTurn, repliesThisTurn, queueLength: speakQueue.length };
     }
 
-    return { start, stop, setActiveAgent, sendUserText, requestSpeech, getState };
+    return { start, stop, setActiveAgent, setMicMuted, sendUserText, requestSpeech, getState };
 }
