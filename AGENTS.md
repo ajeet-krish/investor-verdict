@@ -1,5 +1,8 @@
 # investor-verdict
 
+## Audio test branch
+On `test/investor-integration`, read [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md) first. This local experiment adds real-time microphone transcription and streamed speech for only the selected investor. The main-branch completion report below describes the earlier text-only baseline. Do not merge or deploy this audio experiment without a user request.
+
 ## Current text integration
 Read [docs/SETUP_HANDOFF.md](docs/SETUP_HANDOFF.md) for the completion report and remaining investor-audio and deployment work. Text integration is already on main; microphone transcription is wired but not manually verified, and spoken investor replies are not connected yet.
 The frontend is connected to the real text backend. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) for the implemented contract and validation. Investors bid for turns dynamically, at most one speaks per founder message, and all may stay silent. Scores start at 50 and can rise or fall. Earlier fixed-order and start-at-100 instructions are superseded. Backend details are in [agents/TEXT_INTEGRATION.md](agents/TEXT_INTEGRATION.md).

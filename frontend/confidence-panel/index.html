@@ -20,7 +20,7 @@
 
   <div class="app" id="app" hidden>
     <h1>Verdict</h1>
-    <p class="sub">Pitch to the panel by typing or speaking. Each panelist scores how confident they are.</p>
+    <p class="sub">Type a pitch or start live audio with the microphone. One investor responds at a time.</p>
     <div class="z">
       <div class="bar"><span><span class="rec"></span>Investment panel</span><span id="timer">00:14:32</span></div>
       <div class="g" id="grid"></div>
@@ -32,6 +32,8 @@
           <button id="send" type="submit">Send</button>
         </form>
         <div class="status" id="status" aria-live="polite"></div>
+        <audio id="reply-audio" controls preload="none" hidden aria-label="Investor voice reply"></audio>
+        <button id="skip-audio" type="button" hidden>Skip reply</button>
       </div>
 
       <div class="tb">

@@ -37,3 +37,28 @@ test('missing keys and upstream errors never leak credentials', async t => {
   const response = await bad.post({ role: 'cto' }); assert.equal(response.status, 502);
   assert.ok(!(await response.text()).includes(env.ELEVENLABS_API_KEY));
 });
+
+test('voice tokens are temporary, uncached, origin-checked and rate-limited', async t => {
+  let minted=0;
+  const {base}=await setup(t,{getVoiceToken:async()=>{minted++;return 'temporary-scribe-token';}});
+  const request=(origin='http://127.0.0.1:5173')=>fetch(base+'/api/voice-token',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin},body:'{}'});
+  assert.equal((await request('https://other.example')).status,403);
+  assert.equal(minted,0);
+  for(let i=0;i<12;i++){
+    const r=await request();assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');
+    const body=await r.text();assert.ok(!body.includes(env.ELEVENLABS_API_KEY));
+  }
+  assert.equal((await request()).status,429);assert.equal(minted,12);
+});
+test('reply audio uses the cookie and turn, streams MP3, and reset cancels audio', async t=>{
+  const calls=[];
+  const {base}=await setup(t,{
+    textPanel:{reset:async id=>calls.push(['reset-panel',id])},
+    replyAudio:{open:(id,turn)=>{calls.push(['audio',id,turn]);return (async function*(){yield Buffer.from('mp3-bytes');})();},reset:id=>calls.push(['reset-audio',id])},
+  });
+  const r=await fetch(base+'/api/reply-audio?turn=3',{headers:{Cookie:'verdict_session=owned'}});
+  assert.equal(r.headers.get('content-type'),'audio/mpeg');assert.equal(await r.text(),'mp3-bytes');
+  const reset=await fetch(base+'/api/reset',{method:'POST',headers:{'Content-Type':'application/json',Cookie:'verdict_session=owned'},body:'{}'});
+  assert.equal(reset.status,200);
+  assert.deepEqual(calls,[['audio','owned',3],['reset-audio','owned'],['reset-panel','owned']]);
+});

@@ -118,6 +118,14 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
   }
 
   return {
+    getSpeech(sessionId, turn) {
+      const session = sessions.get(sessionId);
+      if (!session || session.closed) throw new PanelError('Pitch session expired. Start a new pitch.', 409);
+      if (!Number.isSafeInteger(turn) || session.busy || turn !== session.turn) throw new PanelError('That reply is no longer current.', 409);
+      if (!session.lastExchange?.speaker || !session.lastExchange.reply) throw new PanelError('No investor spoke on this turn.', 404);
+      idle(session);
+      return { role: session.lastExchange.speaker, text: session.lastExchange.reply };
+    },
     async evaluate(body, sessionId) {
       const input = validatePitch(body);
       if (shuttingDown) throw new PanelError('Server is shutting down.', 503);

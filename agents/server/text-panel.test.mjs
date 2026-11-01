@@ -56,11 +56,14 @@ test('existing payload keeps four scores, with one dynamically chosen speaker an
     const first = await service.evaluate(pitch);
     assert.deepEqual(first.result.scores, [55, 55, 55, 55]);
     assert.equal(first.result.speaker, 'interrogator');
+    assert.equal(service.getSpeech(first.sessionId, 1).role, 'interrogator');
+    assert.throws(() => service.getSpeech('another-session', 1), /expired/);
     assert.equal(first.result.responses.filter(r => r.spoke).length, 1);
     assert.ok(first.result.responses.filter(r => !r.spoke).every(r => r.reply === ''));
     assert.ok(sdk.configs.every(c => c.textOnly));
     const second = await service.evaluate({ ...pitch, scores: [1, 2, 3, 4] }, first.sessionId);
     assert.equal(second.result.speaker, 'sympathizer');
+    assert.throws(() => service.getSpeech(first.sessionId, 1), /no longer current/);
     assert.deepEqual(second.result.scores, [60, 60, 60, 60]);
     const assessments = sdk.sent.filter(s => s.packet.round === 2 && s.packet.phase === 'assess');
     assert.equal(assessments.length, 4);
@@ -78,8 +81,9 @@ test('everyone can pass without a speech request or a fabricated reply', async (
   const sdk = fakeSdk({ bid: () => pass });
   const service = makeService(sdk);
   try {
-    const { result } = await service.evaluate(pitch);
+    const { result, sessionId } = await service.evaluate(pitch);
     assert.equal(result.speaker, null);
+    assert.throws(() => service.getSpeech(sessionId, 1), /No investor spoke/);
     assert.equal(result.selectionReason, null);
     assert.ok(result.responses.every(r => !r.spoke && !r.wantsTurn && r.reply === ''));
     assert.equal(sdk.sent.filter(s => s.packet.phase === 'speak').length, 0);

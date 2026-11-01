@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { once } from 'node:events';
 
 export const ENV_IDS = Object.freeze({
   cto: 'ELEVENLABS_AGENT_ID_CTO',
@@ -7,9 +8,10 @@ export const ENV_IDS = Object.freeze({
   sympathizer: 'ELEVENLABS_AGENT_ID_SYMPATHIZER',
 });
 
-export function createApiServer({ env = process.env, getSignedUrl, textPanel }) {
+export function createApiServer({ env = process.env, getSignedUrl, textPanel, replyAudio, getVoiceToken }) {
   const origin = env.APP_ORIGIN || 'http://127.0.0.1:5173';
   const agentIds = Object.fromEntries(Object.entries(ENV_IDS).map(([role, name]) => [role, env[name] || '']));
+  let tokenWindow = 0, tokenCount = 0;
   return createServer(async (req, res) => {
     const send = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -19,11 +21,37 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel }) 
     if (req.headers.origin && req.headers.origin !== origin) return send(403, { error: 'Origin not allowed.' });
     if (req.headers['sec-fetch-site'] === 'cross-site') return send(403, { error: 'Cross-site request blocked.' });
     const url = new URL(req.url, 'http://localhost');
+    const sessionId = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith('verdict_session='))?.slice('verdict_session='.length);
+    if (getVoiceToken && req.method === 'POST' && url.pathname === '/api/voice-token') {
+      if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'JSON required.' });
+      if (!env.ELEVENLABS_API_KEY) return send(503, { error: 'Voice is not configured.' });
+      if (Date.now() - tokenWindow > 60000) { tokenWindow = Date.now(); tokenCount = 0; }
+      if (++tokenCount > 12) return send(429, { error: 'Too many voice connections. Wait a minute before reconnecting.' });
+      try { return send(200, { token: await getVoiceToken() }); }
+      catch { return send(502, { error: 'Could not start live transcription. Check ElevenLabs speech-to-text access.' }); }
+    }
+    if (replyAudio && req.method === 'GET' && url.pathname === '/api/reply-audio') {
+      const abort = new AbortController();
+      res.once('close', () => abort.abort());
+      try {
+        for await (const chunk of replyAudio.open(sessionId, Number(url.searchParams.get('turn')), abort.signal)) {
+          if (abort.signal.aborted) break;
+          if (!res.headersSent) res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'Accept-Ranges': 'none' });
+          if (!res.write(chunk)) await once(res, 'drain', { signal: abort.signal });
+        }
+        if (!abort.signal.aborted) res.end();
+      } catch (error) {
+        if (abort.signal.aborted) return;
+        if (res.headersSent) res.destroy();
+        else send(error.status || 502, { error: error.status ? error.message : 'Investor audio failed.' });
+      }
+      return;
+    }
     if (textPanel && req.method === 'POST' && ['/api/evaluate', '/evaluate', '/api/reset'].includes(url.pathname)) {
       if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'JSON required.' });
-      const sessionId = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith('verdict_session='))?.slice('verdict_session='.length);
       try {
         if (url.pathname === '/api/reset') {
+          replyAudio?.reset(sessionId);
           await textPanel.reset(sessionId);
           res.setHeader('Set-Cookie', 'verdict_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
           return send(200, { scores: [50, 50, 50, 50] });

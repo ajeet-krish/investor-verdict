@@ -1,4 +1,7 @@
 import "./style.css";
+import { createRealtimeVoice } from "./realtime-voice";
+import type { VoiceState } from "./realtime-voice";
+import { createReplyPlayer } from "./reply-player";
 
 /* ---------- Types ---------- */
 
@@ -25,27 +28,6 @@ interface Panelist extends Seed {
   value: HTMLElement;
   chip: HTMLElement;
 }
-
-/* The Web Speech API isn't in TypeScript's DOM lib yet, so we type the bits we use. */
-interface SpeechResultLike {
-  isFinal: boolean;
-  [index: number]: { transcript: string };
-}
-interface SpeechEventLike {
-  resultIndex: number;
-  results: ArrayLike<SpeechResultLike>;
-}
-interface RecognitionLike {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((e: SpeechEventLike) => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-}
-type RecognitionCtor = new () => RecognitionLike;
 
 /* ---------- Config ---------- */
 
@@ -211,92 +193,6 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
   return panelist;
 }
 
-/* ---------- Voice ---------- */
-
-interface VoiceHandlers {
-  onFinal: (text: string) => void;
-  onInterim: (text: string) => void;
-  onState: (live: boolean) => void;
-  onError: (message: string) => void;
-}
-
-interface Voice {
-  readonly supported: boolean;
-  readonly live: boolean;
-  start(): void;
-  stop(): void;
-}
-
-function createVoice(h: VoiceHandlers): Voice {
-  const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
-  const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-  let rec: RecognitionLike | null = null;
-  let wanted = false;
-
-  const spawn = (): void => {
-    if (!Ctor) return;
-    const r = new Ctor();
-    r.continuous = true;
-    r.interimResults = true;
-    r.lang = navigator.language || "en-US";
-    r.onresult = (e) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const result = e.results[i];
-        const text = result[0].transcript;
-        if (result.isFinal) h.onFinal(text);
-        else interim += text;
-      }
-      h.onInterim(interim);
-    };
-    r.onerror = (e) => {
-      if (e.error === "no-speech" || e.error === "aborted") return;
-      wanted = false;
-      const blocked = e.error === "not-allowed" || e.error === "service-not-allowed";
-      h.onError(blocked ? "Microphone access was blocked. Allow it in your browser settings and try again." : `Voice error: ${e.error}`);
-    };
-    r.onend = () => {
-      if (wanted) {
-        try {
-          spawn(); // browsers end sessions after silence; keep listening
-        } catch {
-          wanted = false;
-          h.onState(false);
-        }
-      } else {
-        h.onInterim("");
-        h.onState(false);
-      }
-    };
-    rec = r;
-    r.start();
-  };
-
-  return {
-    supported: Ctor !== null,
-    get live() {
-      return wanted;
-    },
-    start() {
-      if (!Ctor || wanted) return;
-      wanted = true;
-      try {
-        spawn();
-        h.onState(true);
-      } catch {
-        wanted = false;
-        h.onError("Couldn't start the microphone.");
-      }
-    },
-    stop() {
-      wanted = false;
-      rec?.stop();
-      h.onInterim("");
-      h.onState(false);
-    },
-  };
-}
-
 /* ---------- App ---------- */
 
 function main(): void {
@@ -316,6 +212,8 @@ function main(): void {
   const resetBtn = must<HTMLButtonElement>(document, "#reset");
   const leaveBtn = must<HTMLButtonElement>(document, "#leave");
   const startBtn = must<HTMLButtonElement>(document, "#start");
+  const replyAudio = must<HTMLAudioElement>(document, "#reply-audio");
+  const skipAudio = must<HTMLButtonElement>(document, "#skip-audio");
   freezeBtn.hidden = true; // Live confidence is authoritative; do not discard score updates.
   promptInput.maxLength = 4000;
 
@@ -324,9 +222,17 @@ function main(): void {
   let interim = "";
   let notice = "";
   let lastTurn = 0;
+  let epoch = 0;
+  let voiceState: VoiceState = 'off';
+  let audioPlaying = false;
+  let audioGeneration = 0;
+  let speakingName = '';
+  const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
     busy = value;
-    for (const control of [send, resetBtn, leaveBtn, startBtn, micBtn, promptInput]) control.disabled = value;
+    for (const control of [send, startBtn, promptInput]) control.disabled = value;
+    resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
+    micBtn.disabled = value && voiceState === 'off';
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
@@ -335,8 +241,10 @@ function main(): void {
   /* status line */
   const renderStatus = (): void => {
     if (notice) statusEl.textContent = notice;
-    else if (busy) statusEl.textContent = "The panel is deliberating\u2026";
-    else if (voice.live) statusEl.textContent = interim ? `Listening\u2026 ${interim}` : "Listening\u2026";
+    else if (audioPlaying) statusEl.textContent = `${speakingName} is speaking. Your microphone is paused.`;
+    else if (busy) statusEl.textContent = "The panel is deliberating…";
+    else if (voiceState === 'connecting') statusEl.textContent = 'Connecting live audio… Allow microphone access when asked.';
+    else if (voiceState === 'listening') statusEl.textContent = interim ? `Listening… ${interim}` : 'Listening… Pause briefly when you finish your turn.';
     else statusEl.textContent = "";
   };
   const showNotice = (message: string): void => {
@@ -372,7 +280,11 @@ function main(): void {
   /* One request at a time; no queued requests can leak into a new pitch. */
   const judge = async (text: string): Promise<void> => {
     setBusy(true);
-    voice.stop();
+    const current = epoch;
+    const currentAudio = audioGeneration;
+    voice.pause();
+    player.stop();
+    replyAudio.hidden = true;
     showSpeaker(null);
     notice = "";
     renderStatus();
@@ -389,54 +301,75 @@ function main(): void {
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
       const reply = result.responses.find(r => r.spoke);
       showSpeaker(result.speaker);
-      if (reply) addMsg("investor", `${reply.panelist}: ${reply.reply}`);
-      else showNotice("The panel is listening.");
+      if (reply) {
+        addMsg("investor", `${reply.panelist}: ${reply.reply}`);
+        if (currentAudio === audioGeneration) {
+          speakingName = reply.panelist;
+          audioPlaying = true;
+          skipAudio.hidden = false;
+          setBusy(true);
+          renderStatus();
+          const played = await player.play(`${API_URL}/reply-audio?turn=${result.turn}`);
+          if (current !== epoch) return;
+          if (!played) showNotice('Audio stopped or unavailable. The investor reply is in the chat.');
+        }
+      } else showNotice("The panel is listening.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "The panel couldn't respond.";
       addMsg("sys", `${message} Your text is below so you can retry.`);
       promptInput.value = text;
+      voice.stop();
     } finally {
-      setBusy(false);
-      renderStatus();
-      promptInput.focus();
+      if (current === epoch) {
+        audioPlaying = false;
+        skipAudio.hidden = true;
+        replyAudio.hidden = true;
+        setBusy(false);
+        voice.resume();
+        renderStatus();
+        promptInput.focus();
+      }
     }
   };
 
   const submit = (raw: string, via: "text" | "voice"): void => {
     const text = raw.trim();
     if (!text || busy || app.hidden) return;
-    if (text.length > 4000) { showNotice("Please keep your pitch under 4,000 characters."); return; }
+    if (text.length > 4000) { voice.resume(); showNotice("Please keep your pitch under 4,000 characters."); return; }
     promptInput.value = "";
     addMsg(via === "voice" ? "you voice" : "you", text);
     void judge(text);
   };
 
-  /* voice: the panel listens to everything you say */
-  const voice = createVoice({
+  const voice = createRealtimeVoice({
     onFinal: (text) => submit(text, "voice"),
-    onInterim: (text) => {
-      interim = text;
+    onInterim: (text) => { interim = text; renderStatus(); },
+    onState: (state) => {
+      voiceState = state;
+      micBtn.classList.toggle("live", state !== 'off');
+      micBtn.setAttribute("aria-pressed", String(state !== 'off'));
+      micBtn.setAttribute("aria-label", state !== 'off' ? 'Stop live audio' : 'Start live audio');
+      panel.forEach(p => p.el.classList.toggle("hear", state === 'listening'));
+      setBusy(busy);
       renderStatus();
     },
-    onState: (live) => {
-      micBtn.classList.toggle("live", live);
-      micBtn.setAttribute("aria-pressed", String(live));
-      micBtn.setAttribute("aria-label", live ? "Turn microphone off" : "Turn microphone on");
-      panel.forEach((p) => p.el.classList.toggle("hear", live));
-      renderStatus();
-    },
-    onError: (message) => showNotice(message),
+    onError: showNotice,
+  }, async signal => {
+    const response = await fetch(`${API_URL}/voice-token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal,
+    });
+    const data = await response.json();
+    if (!response.ok || typeof data.token !== 'string') throw new Error('Voice token unavailable');
+    return data.token;
   });
 
-  /* toolbar */
-  micBtn.addEventListener("click", () => {
-    if (!voice.supported) {
-      showNotice("Voice isn't supported in this browser. Try Chrome, Edge, or Safari.");
-      return;
-    }
-    if (voice.live) voice.stop();
-    else voice.start();
+  micBtn.setAttribute('aria-label', 'Start live audio');
+  micBtn.addEventListener('click', () => {
+    if (voice.enabled) { audioGeneration++; voice.stop(); player.stop(); }
+    else if (!busy) { notice = ''; void voice.start(); }
   });
+  skipAudio.addEventListener('click', () => player.stop());
+  window.addEventListener('pagehide', () => { voice.stop(); player.stop(); });
 
   camBtn.addEventListener("click", () => {
     const on = camBtn.getAttribute("aria-pressed") !== "true";
@@ -453,9 +386,14 @@ function main(): void {
     if (open) promptInput.focus();
   });
 
-  // Reset/Leave are disabled while evaluating, avoiding late responses and cookie races.
+  // Evaluation must finish before reset; playing audio can be stopped immediately.
   const resetSession = async (): Promise<boolean> => {
-    if (busy) return false;
+    if (busy && !audioPlaying) return false;
+    epoch++;
+    player.stop();
+    replyAudio.hidden = true;
+    skipAudio.hidden = true;
+    audioPlaying = false;
     setBusy(true);
     voice.stop();
     showSpeaker(null);

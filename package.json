@@ -3,13 +3,13 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.6"
   },
   "scripts": {
     "dev": "node --env-file=.env agents/server/dev.mjs",
     "server": "node --env-file=.env agents/server/index.mjs",
     "build": "node agents/server/build.mjs",
-    "test": "node --test agents/server/*.test.mjs visuals/confidence/interest-controller.test.mjs"
+    "test": "node --experimental-strip-types --test agents/server/*.test.mjs visuals/confidence/interest-controller.test.mjs"
   },
   "dependencies": {
     "@elevenlabs/client": "1.32.1",
