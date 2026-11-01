@@ -525,11 +525,21 @@ function main(): void {
 
   /* welcome <-> call */
   startBtn.addEventListener("click", async () => {
-    if (!await resetSession()) return;
-    startBtn.textContent = "Join the room ↗";
+    if (busy) return;
     welcome.hidden = true;
     app.hidden = false;
     window.scrollTo(0, 0);
+    const ready = resetSession();
+    showNotice("Connecting to the investor room… The server may need a moment to wake up.");
+    if (!await ready) {
+      app.hidden = true;
+      welcome.hidden = false;
+      startBtn.textContent = "Couldn't connect. Click to retry";
+      return;
+    }
+    notice = "";
+    renderStatus();
+    startBtn.textContent = "Join the room ↗";
     promptInput.focus();
   });
   leaveBtn.addEventListener("click", async () => {
