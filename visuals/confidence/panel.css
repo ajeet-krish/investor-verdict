@@ -1,0 +1,13 @@
+.investor-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; font-family: system-ui, sans-serif; color: #f0f3fa; }
+.investor-card { overflow: hidden; border: 1px solid #3b4359; border-radius: 16px; background: #192134; --interest: #74e0ae; }
+.investor-card img { display: block; width: 100%; aspect-ratio: 1672 / 941; object-fit: cover; }
+.investor-details { padding: 20px; }
+.investor-details h2 { font-size: 1.15rem; margin: 0 0 14px; }
+.investor-details strong { display: block; font-size: 2rem; font-variant-numeric: tabular-nums; }
+.investor-details progress { display: block; width: 100%; height: 14px; margin: 12px 0; accent-color: var(--interest); }
+.investor-status { font-weight: 650; color: var(--interest); }
+.investor-details p { color: #d0d7e6; line-height: 1.5; min-height: 3em; margin-bottom: 0; }
+.investor-card[data-status='concerned'] { --interest: #f1c66e; }
+.investor-card[data-status='nearly-out'], .investor-card[data-status='out'] { --interest: #ff9898; }
+.investor-card[data-status='out'] img { filter: grayscale(1); opacity: .5; }
+@media (max-width: 650px) { .investor-panel { grid-template-columns: 1fr; } }
