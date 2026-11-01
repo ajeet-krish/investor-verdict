@@ -4,7 +4,11 @@ Teams style call where you pitch to 4 live voice investors and survive to term s
 
 ## How to watch demo
 
-Start with the screenshots, then play the screen recording for the full pitch arc.
+Live demo: https://investor-verdict-1.onrender.com (Render display name is investor-verdict, URL slug is investor-verdict-1).
+
+Health check: GET https://investor-verdict-1.onrender.com/health must return ok true.
+
+Start with the live demo, then play the screen recording for the full pitch arc.
 
 * Call grid: `docs/screenshots/call-grid.png` (placeholder, capture 4 tiles plus founder tile)
 * Score bars: `docs/screenshots/score-bars.png` (placeholder, capture bars mid pitch plus one mover)
@@ -15,6 +19,8 @@ Start with the screenshots, then play the screen recording for the full pitch ar
 Shot list and recording script live in `docs/demo.md`.
 
 ## How to run 60 second quickstart
+
+Fastest path: open the hosted demo at https://investor-verdict-1.onrender.com, then confirm GET /health on the same host returns ok true.
 
 1. Clone and enter the repo: `git clone <repo url>` then `cd investor-verdict`
 2. Checkout this branch: `git checkout feat/agents/4-agent-live-system`
@@ -32,6 +38,8 @@ ELEVENLABS_AGENT_ID_SYMPATHIZER=agent_sympathizer_placeholder
 ```
 
 Live browser voice uses public agent IDs only. The API key stays server side for signed URLs. Never commit `.env`.
+
+Hosted verify: GET https://investor-verdict-1.onrender.com/health must return ok true, and POST /api/signed-url on the same host with `{"agentKey": "cto"}` must return signedUrl JSON.
 
 ## Meet the panel
 

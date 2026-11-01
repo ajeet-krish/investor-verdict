@@ -41,6 +41,6 @@ To enable server reporting:
 ## Verify
 
 1. Start the deploy server: `npm start` from `deploy/`.
-2. Open `GET /health`, expect `ok true`.
+2. Open `GET /health` locally plus `GET https://investor-verdict-1.onrender.com/health` on the live host, expect `ok true` on both.
 3. Trigger a test error in the panel, confirm it appears in the Sentry project
    with `signedUrl` shown as `[removed]`.

@@ -1,4 +1,5 @@
 # Render blueprint for investor verdict.
+# Live URL: https://investor-verdict-1.onrender.com (display name investor-verdict, URL slug investor-verdict-1).
 # Default runtime is Node with rootDir deploy, Build npm install, Start npm start.
 # Docker fallback: deploy/Dockerfile exists so a dashboard service created with
 # Docker runtime can still build. If dashboard shows Docker type, either keep

@@ -54,10 +54,14 @@ Note: frontend confidence panel and visuals confidence plus investors paths are 
 
 ## Appendix: Render hosting plus Sentry monitoring
 
-Render runs one Web Service named `investor-verdict`. Runtime is Node, root
-directory is `deploy`, build command is `npm install`, start command is
-`npm start`. Plan is Starter, always on, so the demo has no cold start. It uses
-Render credits from the $50 balance. Health check path is `/health`.
+Live demo: https://investor-verdict-1.onrender.com. Render runs one Web Service
+with display name `investor-verdict` and URL slug `investor-verdict-1`.
+Runtime is Node, root directory is `deploy`, build command is `npm install`,
+start command is `npm start`. Plan is Starter, always on, so the demo has no
+cold start. It uses Render credits from the $50 balance. Health check path is
+`/health`, so GET https://investor-verdict-1.onrender.com/health must return
+ok true. Signed URL check is POST /api/signed-url on the same host with JSON
+`{"agentKey": "cto"}`, expect `signedUrl` JSON.
 
 Env vars on the Render dashboard (all values sync false in `render.yaml`):
 

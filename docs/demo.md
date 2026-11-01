@@ -39,17 +39,19 @@ Speak in short numbered turns so the arbiter stays at max 2 replies and the reco
 
 ## Prewarm checklist (Render Starter plus Sentry, 5 min before judging)
 
+Live URL is https://investor-verdict-1.onrender.com (display name investor-verdict, URL slug investor-verdict-1).
+
 Starter plan is always on, so this list only confirms the service stayed warm
 and the error path is quiet.
 
-1. Open `GET /health` on the Render URL, expect `ok true`. Reload once after
+1. Open `GET https://investor-verdict-1.onrender.com/health`, expect `ok true`. Reload once after
     60 seconds to confirm no cold start
-2. Open `GET /` and confirm the expected page: built panel when
+2. Open `GET https://investor-verdict-1.onrender.com/` and confirm the expected page: built panel when
     `frontend/confidence-panel/dist` shipped, else `visuals/confidence/demo.html`,
     else the placeholder page with the API notes
 3. Check the Sentry project for new errors in the last hour. Expect zero, or
     only known rehearsal noise
 4. Keep one laptop on the Render URL and one backup on local mock plus
     `docs/demo.mp4` in case venue wifi drops
-5. If the panel needs a private agent later, test `POST /api/signed-url` with
+5. If the panel needs a private agent later, test `POST https://investor-verdict-1.onrender.com/api/signed-url` with
     `{"agentKey": "cto"}` once. Expect `signedUrl` JSON, never log the value
