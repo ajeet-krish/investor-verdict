@@ -1,10 +1,6 @@
 # investor-verdict
 
-Coding-agent collaboration: [setup and pipeline](docs/CODING_AGENT_PIPELINE.md), [instructions for your coding agent](agents/CODING_AGENT_HANDOFF.md). Approve once in the app, then the coding agent can draft founder replies while the real investor panel responds.
-
-Teams style call where you pitch to 4 live voice investors and survive to term sheet. You enter as the founder, face a panel with strong opinions and live scores, and every clear answer moves you closer to an offer while every vague answer puts you closer to the exit.
-
-Local quickstart: see [Run it locally](#run-it-locally).
+Ever dreamed of being a Series A founder raising $5 million? Now you can live out your founder dreams and try to raise funding for your startup idea. Face a panel of investors in a Teams style call, where you pitch to 4 live, conversational agents. Every clear answer moves you closer to an offer, while every vague answer may cause an investor to back up entirely.
 
 ## How it works
 
@@ -44,17 +40,3 @@ You play the founder: concise, specific, and coachable under pressure. Bring pri
 </table>
 
 All scores start at 50. Code note: stable agent IDs in code are `cto`, `tech_bro`, `interrogator`, and `sympathizer`, mapped to the Titles above in order.
-
-## Run it locally
-
-```sh
-npm ci
-npm --prefix frontend/confidence-panel ci
-npm run dev
-```
-
-Open http://127.0.0.1:5173. Copy `.env.example` to `.env` for a new checkout and keep keys out of Git.
-
-## Technical details
-
-For architecture, data flow, and failure modes, see [docs/architecture.md](docs/architecture.md).
