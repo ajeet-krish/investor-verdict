@@ -20,18 +20,34 @@
 
   <div class="app" id="app" hidden>
     <h1>Verdict</h1>
-    <p class="sub">Four panelists, one live confidence score each. Add a photo to any tile to replace the number.</p>
+    <p class="sub">Pitch to the panel by typing or speaking. Each panelist scores how confident they are.</p>
     <div class="z">
       <div class="bar"><span><span class="rec"></span>Investment panel</span><span id="timer">00:14:32</span></div>
       <div class="g" id="grid"></div>
+
+      <div class="chatbox" id="chatbox">
+        <div class="log" id="log" aria-live="polite"></div>
+        <form id="form" autocomplete="off">
+          <input id="prompt" type="text" placeholder="Pitch to the panel" aria-label="Your pitch" />
+          <button id="send" type="submit">Send</button>
+        </form>
+        <div class="status" id="status" aria-live="polite"></div>
+      </div>
+
       <div class="tb">
-        <button id="pause" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
-          <span id="pause-label" style="margin-left:8px">Pause scores</span>
+        <button id="mic" type="button" aria-pressed="false" aria-label="Turn microphone on">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /><path class="slash" d="M4 4l16 16" /></svg>
         </button>
-        <button type="button" aria-label="Mute"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" /></svg></button>
-        <button type="button" aria-label="Camera"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg></button>
-        <button type="button" aria-label="Chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" /></svg></button>
+        <button id="cam" type="button" aria-pressed="true" aria-label="Hide photos">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg>
+        </button>
+        <button id="chat" type="button" aria-pressed="true" aria-label="Hide chat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+        </button>
+        <button id="freeze" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
+          <span id="freeze-label" style="margin-left:8px">Freeze scores</span>
+        </button>
         <button id="reset" type="button">Reset</button>
         <button class="lv" id="leave" type="button">Leave</button>
       </div>
