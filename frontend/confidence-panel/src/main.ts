@@ -1,5 +1,4 @@
 import "./style.css";
-import { createReplyCoachUI } from "./reply-coach";
 import { createAgentBridgeUI } from "./agent-bridge";
 import type { AgentSubmission } from "./agent-bridge";
 import { createRealtimeVoice } from "./realtime-voice";
@@ -240,7 +239,6 @@ function main(): void {
   let audioPlaying = false;
   let audioGeneration = 0;
   let bridge: ReturnType<typeof createAgentBridgeUI> | undefined;
-  let coach: ReturnType<typeof createReplyCoachUI> | undefined;
   let speakingName = '';
   const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
@@ -249,7 +247,6 @@ function main(): void {
     resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
     micBtn.disabled = value && voiceState === 'off';
     bridge?.refresh();
-    coach?.refresh();
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
@@ -304,7 +301,6 @@ function main(): void {
   /* One request at a time; no queued requests can leak into a new pitch. */
   const judge = async (text: string, job?: AgentSubmission): Promise<void> => {
     setBusy(true);
-    coach?.begin(text, job ? "You (coding agent)" : "You");
     const current = epoch;
     const currentAudio = audioGeneration;
     let bridgeRevision: number | undefined;
@@ -320,14 +316,11 @@ function main(): void {
       bridgeRevision = result.bridgeRevision;
       if (result.turn === 1 && lastTurn > 0) {
         before = panel.map(() => 50);
-        coach?.reset();
-        coach?.begin(text, job ? "You (coding agent)" : "You");
         addMsg("sys", "Your previous session expired. This pitch starts fresh at 50.");
       }
       lastTurn = result.turn;
       panel.forEach((p, i) => (p.score = result.scores[i]));
       draw(before);
-      coach?.complete(result);
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
       if (!result.speakingOrder.length) showNotice("The panel is listening.");
       for (const role of result.speakingOrder) {
@@ -348,7 +341,6 @@ function main(): void {
         }
       }
     } catch (err) {
-      coach?.failure();
       const message = err instanceof Error ? err.message : "The panel couldn't respond.";
       addMsg("sys", `${message} Your text is below so you can retry.`);
       promptInput.value = text;
@@ -380,10 +372,9 @@ function main(): void {
 
   const voice = createRealtimeVoice({
     onFinal: (text) => submit(text, "voice"),
-    onInterim: (text) => { interim = text; coach?.interim(text); renderStatus(); },
+    onInterim: (text) => { interim = text; renderStatus(); },
     onState: (state) => {
       voiceState = state;
-      if (state === 'off') coach?.interim('');
       micBtn.classList.toggle("live", state !== 'off');
       micBtn.setAttribute("aria-pressed", String(state !== 'off'));
       micBtn.setAttribute("aria-label", state !== 'off' ? 'Stop live audio' : 'Start live audio');
@@ -417,7 +408,7 @@ function main(): void {
     else if (!busy) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
   });
   skipAudio.addEventListener('click', () => player.stop());
-  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); coach?.close(); voice.stop(); player.stop(); });
+  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); voice.stop(); player.stop(); });
 
   camBtn.addEventListener("click", () => {
     const on = camBtn.getAttribute("aria-pressed") !== "true";
@@ -438,7 +429,6 @@ function main(): void {
   const resetSession = async (): Promise<boolean> => {
     if (busy && !audioPlaying) return false;
     epoch++;
-    coach?.reset();
     player.stop();
     replyAudio.hidden = true;
     skipAudio.hidden = true;
@@ -454,7 +444,6 @@ function main(): void {
         throw new Error("The session could not be reset. Please try again.");
       }
       bridge?.reset();
-      coach?.reset(result.bridgeRevision);
       panel.forEach(p => (p.score = 50));
       lastTurn = 0;
       draw();
@@ -501,23 +490,6 @@ function main(): void {
     timer.textContent = `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   }, 1000);
 
-  coach = createReplyCoachUI(API_URL, {
-    busy: () => busy,
-    edit: () => bridge?.pauseForHuman(),
-    attach: text => {
-      bridge?.pauseForHuman();
-      voice.stop();
-      const current = promptInput.value.trim();
-      const combined = current ? `${current} ${text}` : text;
-      if (combined.length > 4000) { showNotice('Shorten your chat text or draft before adding the suggestion.'); return; }
-      promptInput.value = combined;
-      chatbox.hidden = false;
-      chatBtn.setAttribute('aria-pressed', 'true');
-      chatBtn.setAttribute('aria-label', 'Hide chat');
-      promptInput.focus();
-      showNotice('Suggestion added. Edit it, then press Send.');
-    },
-  });
   const layout = must<HTMLElement>(document, ".layout");
   const tipsEl = must<HTMLElement>(document, "#tips");
   const tipsBtn = must<HTMLButtonElement>(document, "#tipsbtn");

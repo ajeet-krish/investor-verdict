@@ -83,36 +83,28 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
           <span id="freeze-label" style="margin-left:8px">Freeze scores</span>
         </button>
-        <button id="tipsbtn" type="button" aria-pressed="true">Coach</button>
+        <button id="tipsbtn" type="button" aria-pressed="true">Suggestions</button>
         <button id="reset" type="button">Reset</button>
         <button class="lv" id="leave" type="button">Leave</button>
       </div>
     </div>
-    <aside class="tips" id="tips" aria-label="Reply coach">
-      <div class="tips-head">Choose your next input</div>
-      <p class="coach-caption">Suggestions from your conversation. Review before sending.</p>
-      <label class="coach-auto"><input id="coach-auto" type="checkbox" checked /> Suggest after each round</label>
-      <p id="coach-status" class="coach-status" role="status">Pick an opening below. Edit it, then add it to chat.</p>
-      <div class="focus">
-        <span class="focus-label">What to address</span>
-        <p id="coach-focus"></p>
-        <div id="coach-options" class="coach-options" aria-label="Suggested inputs"></div>
-        <label for="coach-draft">Edit your chosen input</label>
-        <textarea id="coach-draft" rows="4" maxlength="1800" placeholder="Choose an input above, or write your own."></textarea>
-        <button id="coach-use" type="button" disabled>Add to chat</button>
-      </div>
-      <details class="coach-notes">
-        <summary>Help the coach</summary>
-        <label for="coach-note">Add facts or ask for a change</label>
-        <textarea id="coach-note" rows="3" maxlength="1000" placeholder="e.g. Make it shorter. We have five paying customers."></textarea>
-      </details>
-      <button id="coach-refresh" type="button" disabled>Update suggestion</button>
-      <p id="coach-summary" class="coach-summary"></p>
-      <details class="coach-conversation" open>
-        <summary>Conversation transcript</summary>
-        <div id="coach-transcript" role="log" aria-label="Founder and investor transcript"></div>
-        <p id="coach-interim" class="coach-interim"></p>
-      </details>
+    <aside class="tips" id="tips" aria-label="Suggested inputs">
+      <div class="tips-head">Suggested inputs</div>
+      <p class="suggestion-caption">A few ways to start. Respond in the main chat or use your microphone.</p>
+      <ol class="input-examples">
+        <li>
+          <h2>Introduce the idea</h2>
+          <p>I'm building an AI pitch-practice app to help founders prepare for investor meetings.</p>
+        </li>
+        <li>
+          <h2>Explain the problem</h2>
+          <p>Founders need a low-pressure place to practise answering tough questions before a real pitch.</p>
+        </li>
+        <li>
+          <h2>Ask for guidance</h2>
+          <p>What would you need to see before you believed this idea could work?</p>
+        </li>
+      </ol>
     </aside>
     </div>
     <p class="note">Photos stay on this device only and are never uploaded.</p>

@@ -1,7 +1,7 @@
 # investor-verdict
 
-## Reply coach
-The right sidebar now uses OpenAI for short founder-reply suggestions based on server-owned conversation history, plus an editable draft and text/voice transcript. Read the latest section of [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md). `OPENAI_API_KEY` (also accepts existing `openai_key`) stays server-side. Add to chat never submits automatically. Run `npm run test:coach` for a free check; `test:coach:live` spends OpenAI credits. Do not reintroduce rotating static tips over this feature.
+## Read-only suggested inputs
+The right sidebar is now a static, read-only list of hardcoded sample founder inputs in `frontend/confidence-panel/index.html`. It has no chat, editable fields, suggestion buttons or transcript. The main chat and microphone remain the input paths. The earlier interactive OpenAI coach module/API is retained for reference and explicit tests, but the frontend no longer imports or calls it. Do not restore the interactive sidebar without a user request.
 
 ## Coding agents in the live app
 Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.

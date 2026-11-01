@@ -137,3 +137,9 @@ The coach now shows three editable opening choices immediately, before any pitch
 OpenAI recommendations now return `suggestions: [{label, reply}, ...]` with exactly three varied inputs, alongside summary/focus/revision. After a panel round, choices offer distinct approaches rather than a single draft. Choosing an option fills the editable draft; Add to chat remains a separate action and never auto-submits. Existing cancellation, human takeover, caching and credential rules remain unchanged.
 
 Validation: 64 tests and the build pass, including immediate opening choices without network access, reset behavior, choosing alternatives, empty-history coach requests and malformed option rejection. `npm run test:coach:live -- --opening` validates tailored opening suggestions against OpenAI without computer use.
+
+## Current sidebar: hardcoded and read-only
+
+The latest user instruction supersedes the interactive reply-coach sections above. The right side now shows three fixed example inputs (introduce the idea, explain the problem, ask for guidance). Its markup lives directly in `frontend/confidence-panel/index.html`. There are no right-side text fields, option buttons, notes, automatic generation controls or transcript. Only the main chat/microphone accepts founder input; the conversation remains in the main chat.
+
+The frontend no longer imports or invokes `reply-coach.ts`, so this sidebar does not request OpenAI recommendations. Earlier coach modules, endpoint and explicit test commands remain available as a prototype, but are not part of the active sidebar flow. No key or environment changes were needed.
