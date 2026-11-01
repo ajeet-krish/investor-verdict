@@ -1,0 +1,26 @@
+services:
+    - type: web
+      name: investor-verdict
+      runtime: node
+      rootDir: deploy
+      buildCommand: npm install
+      startCommand: npm start
+      plan: starter
+      healthCheckPath: /health
+      envVars:
+          - key: PORT
+            sync: false
+          - key: ELEVENLABS_API_KEY
+            sync: false
+          - key: ELEVENLABS_AGENT_ID_CTO
+            sync: false
+          - key: ELEVENLABS_AGENT_ID_TECH_BRO
+            sync: false
+          - key: ELEVENLABS_AGENT_ID_INTERROGATOR
+            sync: false
+          - key: ELEVENLABS_AGENT_ID_SYMPATHIZER
+            sync: false
+          - key: SENTRY_DSN
+            sync: false
+          - key: VITE_SENTRY_DSN
+            sync: false

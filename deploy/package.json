@@ -1,0 +1,11 @@
+{
+    "name": "investor-verdict-deploy",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Render web service for investor-verdict: static hosting plus signed URL endpoint plus health check",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    }
+}

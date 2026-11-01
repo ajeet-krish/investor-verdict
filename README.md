@@ -1,60 +1,113 @@
 # investor-verdict
 
-Interactive Microsoft Teams style video call where you pitch to 4 distinct voice agents acting as investors and personalities. Each agent is an ElevenLabs realtime conversational agent with a live confidence score. If a score hits 0 that investor leaves the call. If a score hits 100 that investor makes an offer. Survive the call and close the round.
+Teams style call where you pitch to 4 live voice investors and survive to term sheet.
 
-## Team Roles
+## How to watch demo
+
+Start with the screenshots, then play the screen recording for the full pitch arc.
+
+* Call grid: `docs/screenshots/call-grid.png` (placeholder, capture 4 tiles plus founder tile)
+* Score bars: `docs/screenshots/score-bars.png` (placeholder, capture bars mid pitch plus one mover)
+* Screen recording: `docs/demo.mp4` (placeholder, 60 to 90 seconds, mic on, two replies max per turn)
+* Investor portraits: `visuals/investors/` (portrait art lands here, referenced by tiles and avatars)
+* Confidence preview: `visuals/confidence/preview.jpg` (existing still, use while screenshots are pending)
+
+Shot list and recording script live in `docs/demo.md`.
+
+## How to run 60 second quickstart
+
+1. Clone and enter the repo: `git clone <repo url>` then `cd investor-verdict`
+2. Checkout this branch: `git checkout feat/agents/4-agent-live-system`
+3. Copy env and fill 4 public agent IDs: `cp agents/.env.example .env`
+4. Open the call UI: frontend confidence panel (`frontend/confidence-panel/src/main.ts` plus `index.html`, from commit `8fc2a39`) or the visuals demo (`visuals/confidence/demo.html`)
+5. Pick mock for no key rehearsal, or live for voice, grant mic for live, then pitch
+
+Env keys inside `agents/.env.example`:
+
+```
+ELEVENLABS_AGENT_ID_CTO=agent_cto_placeholder
+ELEVENLABS_AGENT_ID_TECH_BRO=agent_tech_bro_placeholder
+ELEVENLABS_AGENT_ID_INTERROGATOR=agent_interrogator_placeholder
+ELEVENLABS_AGENT_ID_SYMPATHIZER=agent_sympathizer_placeholder
+```
+
+Live browser voice uses public agent IDs only. The API key stays server side for signed URLs. Never commit `.env`.
+
+## Meet the panel
 
 <table>
-<tr><th>Area</th><th>Owner</th><th>Scope</th></tr>
-<tr><td>Frontend</td><td>Member 1</td><td>Video call UI, state, scores, layout in /frontend</td></tr>
-<tr><td>Animations and Visuals</td><td>Member 2</td><td>Effects, transitions, avatar motion in /visuals</td></tr>
-<tr><td>ElevenLabs Agents</td><td>Member 3 (requester)</td><td>Agent setup, prompts, voices, realtime wiring in /agents</td></tr>
+<tr><th>Title</th><th>Lens</th><th>Deal rank</th></tr>
+<tr><td>CTO</td><td>Market finance (TAM, pricing, paid traction)</td><td>2, Solid Terms</td></tr>
+<tr><td>Tech Bro</td><td>Arch creativity (novel build, scale, tradeoffs)</td><td>3, Creative Bet</td></tr>
+<tr><td>Interrogator</td><td>Veteran, hardest (profit per unit, cash payback)</td><td>1, Best Deal</td></tr>
+<tr><td>Sympathizer</td><td>Warmest (story, mission, user love)</td><td>4, Smallest Warm Check</td></tr>
 </table>
 
-## Quickstart
+Personas and deal profiles are defined in `agents/config.js`. Start scores default to 50 each.
 
-1. Clone the repo (replace URL with real remote):
-   * `git clone <repo url>`
-   * `cd investor-verdict`
-2. Create your branch and work only in your folder:
-   * `git checkout -b main`
-   * `git checkout -b feat/frontend/your-task`
-3. Copy env template and add your key locally:
-   * `cp .env.example .env`
-   * Add `ELEVENLABS_API_KEY=your_key_here` inside `.env`
-   * Never commit `.env` or any keys
-4. Push early and often:
-   * `git add .`
-   * `git commit -m "feat: describe change"`
-   * `git push -u origin feat/frontend/your-task`
+## Live interaction loop
 
-See CONTRIBUTING.md for branch names and merge workflow. See subfolder READMEs for folder ownership.
+1. Speak once into a single mic, all 4 sessions hear it through one shared stream
+2. Transcripts dedupe to one founder turn (primary session plus 2500ms repeat guard)
+3. All 4 investors score every turn through the confidence engine (deltas 5 to 15)
+4. Max 2 investors reply per turn, picked by addressed Title, then largest delta, then round robin
+5. Score bars move on tiles and avatars, voices react, tension builds
+6. Score 0 leaves the call, score 100 offers a term sheet, terminal investors freeze
 
-## Environment
+## Systems model
 
-Required placeholders (local only):
-
+```mermaid
+flowchart LR
+    UserMic["Founder mic"]
+    SharedStream["Shared mic stream (one MediaStream)"]
+    CTO["CTO session"]
+    TechBro["Tech Bro session"]
+    Interrogator["Interrogator session"]
+    Sympathizer["Sympathizer session"]
+    Dedupe["Transcript dedupe (primary plus 2500ms guard)"]
+    Engine["Confidence engine (score all 4, 0 leaves, 100 offers)"]
+    Arbiter["Speaker arbiter (max 2 replies, cooldown)"]
+    FrontendTiles["Frontend tiles plus score bars"]
+    VisualsAvatars["Visuals avatars plus reactions"]
+    Leave["Leave exit"]
+    Offer["Offer exit"]
+    MockFallback["Mock fallback (no key rehearsal)"]
+    UserMic --> SharedStream
+    SharedStream --> CTO
+    SharedStream --> TechBro
+    SharedStream --> Interrogator
+    SharedStream --> Sympathizer
+    CTO --> Dedupe
+    TechBro --> Dedupe
+    Interrogator --> Dedupe
+    Sympathizer --> Dedupe
+    Dedupe --> Engine
+    Engine --> FrontendTiles
+    Engine --> VisualsAvatars
+    Engine --> Arbiter
+    Arbiter --> UserMic
+    Engine --> Leave
+    Engine --> Offer
+    MockFallback --> Engine
 ```
-ELEVENLABS_API_KEY=your_key_here
-```
 
-Optional placeholders to add as needed:
+Single mic fans out to 4 ElevenLabs sessions. Deduped transcript feeds one engine. Engine drives frontend tiles, visuals avatars, and the arbiter. Arbiter gates audio back to the founder. Mock fallback keeps rehearsal alive with no key.
 
-```
-ELEVENLABS_AGENT_ID_ONE=placeholder
-ELEVENLABS_AGENT_ID_TWO=placeholder
-ELEVENLABS_AGENT_ID_THREE=placeholder
-ELEVENLABS_AGENT_ID_FOUR=placeholder
-```
+## Architecture
 
-Never commit `.env` or `.env.local`. Keys stay on your machine only.
+* MVP realtime design: `docs/architecture.md`
+* Components, data flow, env vars, failure modes, branch map
+* Agent contracts and mock mode: `agents/README.md`
 
-## Submission Note
+## Team roles
 
-Larphacks 2026 submission is at 6pm today. Freeze features 60 minutes before deadline. Use remaining time for demo rehearsal and recording backup.
+<table>
+<tr><th>Area</th><th>Scope</th></tr>
+<tr><td>Frontend</td><td>Video call UI, tiles, score state in frontend confidence panel</td></tr>
+<tr><td>Visuals</td><td>Avatars, reactions, portraits in visuals investors plus confidence demo</td></tr>
+<tr><td>Agents</td><td>ElevenLabs wiring, scoring, arbiter in agents live client plus engine</td></tr>
+</table>
 
-## Links
+## Submission note
 
-* ElevenLabs conversational AI docs: https://elevenlabs.io/docs/conversational-ai/overview
-* AGENTS.md: ./AGENTS.md
-* Contributing: ./CONTRIBUTING.md
+Larphacks 2026 submission is at 6pm. Freeze features 60 minutes before deadline, rehearse the demo, record the backup clip.
