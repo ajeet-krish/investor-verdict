@@ -88,7 +88,7 @@ async function evaluate(pitch: string, current: number[]): Promise<Evaluation> {
     throw new Error("Unexpected investor response.");
   }
   const speakers = data.responses.filter(r => r.spoke);
-  if (!Array.isArray(data.speakingOrder) || data.speakingOrder.length !== speakers.length ||
+  if (!Array.isArray(data.speakingOrder) || data.speakingOrder.length > 2 || data.speakingOrder.length !== speakers.length ||
       new Set(data.speakingOrder).size !== speakers.length ||
       !data.speakingOrder.every(role => speakers.some(r => r.role === role))) {
     throw new Error("Unexpected investor speaker.");

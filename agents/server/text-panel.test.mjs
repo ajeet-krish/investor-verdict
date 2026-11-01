@@ -23,20 +23,21 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
         config.onMessage({ source: 'ai', message: 'Intermediate acknowledgement.' });
         if (packet.phase === 'assess') {
           const report = { turn_number: ++scoreTurn, confidence: Math.min(100, 50 + scoreTurn * scoreChange), reason: 'Concrete customer evidence.' };
-          assert.equal(JSON.parse(config.clientTools.report_investor_interest(report)).accepted, true);
+          assert.equal(JSON.parse(config.clientTools.report_investor_interest(report)).accepted, false);
           // A second tool call cannot change confidence twice for one founder message.
           const duplicate = config.clientTools.report_investor_interest({ ...report, turn_number: scoreTurn + 1 });
           assert.equal(JSON.parse(duplicate).accepted, false);
           queueMicrotask(() => {
             const result = bid(role.key, packet.round);
-            config.onMessage({ source: 'ai', message: typeof result === 'string' ? result : JSON.stringify(result) });
+            const assessment = { ...result, substantive: true, answer_status: packet.pending_concern ? 'resolved' : 'none', score_delta: scoreChange, score_reason: 'Concrete customer evidence.' };
+            config.onMessage({ source: 'ai', message: typeof result === 'string' ? result : JSON.stringify(assessment) });
             config.onIncomingEvent({ type: 'agent_response_complete' });
           });
         } else {
           blockedScores.push(JSON.parse(config.clientTools.report_investor_interest({ turn_number: scoreTurn + 1, confidence: 90, reason: 'Must be rejected in speak phase.' })));
           if (failSpeech) return config.onError();
           const finish = () => {
-            config.onMessage({ source: 'ai', message: `${role.key}: Which customers have paid?` });
+            config.onMessage({ source: 'ai', message: JSON.stringify({ reply: `${role.key}: Which customers have paid?`, concern: packet.confidence === 0 || packet.confidence === 100 ? null : 'Which customers have paid?' }) });
             config.onIncomingEvent({ type: 'agent_response_complete' });
           };
           if (holdSpeech) releaseSpeech = finish;
@@ -218,15 +219,16 @@ test('multiple willing investors speak sequentially in bid order while others si
   } finally { await service.close(); }
 });
 
-test('all four may volunteer once, with the full exchange shared next round', async () => {
+test('all four may volunteer but only two speak, with the full exchange shared next round', async () => {
   const sdk = fakeSdk();
   const service = makeService(sdk);
   try {
     const first = await service.evaluate(pitch);
-    assert.equal(first.result.speakingOrder.length, 4);
-    assert.equal(new Set(first.result.speakingOrder).size, 4);
+    assert.equal(first.result.speakingOrder.length, 2);
+    assert.equal(new Set(first.result.speakingOrder).size, 2);
+    assert.ok(first.result.responses.filter(r => !r.spoke).every(r => r.pendingConcern === null));
     await service.evaluate(pitch, first.sessionId);
     const assessments = sdk.sent.filter(s => s.packet.round === 2 && s.packet.phase === 'assess');
-    assert.ok(assessments.every(s => s.packet.previous_exchange.responses.length === 4));
+    assert.ok(assessments.every(s => s.packet.previous_exchange.responses.length === 2));
   } finally { await service.close(); }
 });

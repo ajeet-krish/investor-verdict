@@ -9,7 +9,9 @@
     "dev": "node --env-file=.env agents/server/dev.mjs",
     "server": "node --env-file=.env agents/server/index.mjs",
     "build": "node agents/server/build.mjs",
-    "test": "node --experimental-strip-types --test agents/server/*.test.mjs visuals/confidence/interest-controller.test.mjs"
+    "test": "node --experimental-strip-types --test agents/server/*.test.mjs visuals/confidence/interest-controller.test.mjs",
+    "test:panel": "node agents/testing/run-panel.mjs",
+    "test:panel:live": "node --env-file=.env agents/testing/run-panel.mjs --live"
   },
   "dependencies": {
     "@elevenlabs/client": "1.32.1",

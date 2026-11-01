@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Conversation } from '@elevenlabs/client';
 import { createInterestController } from '../../visuals/confidence/interest-controller.mjs';
-import { parseBid, selectSpeaker } from './turn-selection.mjs';
+import { selectSpeaker } from './turn-selection.mjs';
+import { MAX_SPEAKERS, parseAssessment, parseSpeech } from './round-policy.mjs';
 
 // Match the latest frontend's titles and photo order, not the old internal CTO alias.
 export const PANEL = [
@@ -48,24 +49,17 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
     session.timer.unref?.();
   }
   async function startInvestor(session, role) {
-    const investor = { role, connection: null, pending: null, lastReply: '', disconnected: false };
+    const investor = { role, connection: null, pending: null, lastReply: '', pendingConcern: null, disconnected: false };
     session.investors.set(role.key, investor);
-    const scoreTool = session.controller.clientToolsFor(role.key).report_investor_interest;
     let openingResolve;
     const opening = new Promise(resolve => { openingResolve = resolve; });
     investor.connection = await sdk.startSession({
       signedUrl: await getSignedUrl(env[role.env]),
       connectionType: 'websocket',
       textOnly: true,
-      clientTools: { report_investor_interest: parameters => {
-        if (session.closed) return JSON.stringify({ accepted: false, error: 'Session closed.' });
-        if (investor.pending?.phase !== 'assess' || investor.pending.scored) {
-          return JSON.stringify({ accepted: false, error: 'Score at most once during the private assessment, never during speech.' });
-        }
-        const result = scoreTool(parameters);
-        if (JSON.parse(result).accepted) investor.pending.scored = true;
-        return result;
-      } },
+      clientTools: { report_investor_interest: () => JSON.stringify({
+        accepted: false, error: 'In investor_panel_v2, return the assessment JSON. The server applies scores once.',
+      }) },
       onMessage: message => {
         if (session.closed || message.source === 'user') return;
         const text = message.message || message.text;
@@ -112,7 +106,7 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         error ? reject(error) : resolve(reply);
       };
       const timer = setTimeout(() => done(new PanelError('Investor response timed out. No automatic retry was made.', 504)), turnTimeoutMs);
-      investor.pending = { phase: packet.phase, scored: false, resolve: reply => done(null, reply), reject: error => done(error) };
+      investor.pending = { phase: packet.phase, resolve: reply => done(null, reply), reject: error => done(error) };
       try { investor.connection.sendUserMessage(JSON.stringify(packet)); } catch { done(new PanelError('Could not send pitch to investor.')); }
     });
   }
@@ -154,27 +148,52 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         const bids = await Promise.all(active.map(async role => {
           const state = before.find(s => s.key === role.key);
           const answer = await ask(session, role, {
-            protocol: 'investor_panel_v1', phase: 'assess', round: session.turn + 1,
+            protocol: 'investor_panel_v2', phase: 'assess', round: session.turn + 1,
             founder_message: input.pitch, previous_exchange: session.lastExchange,
+            pending_concern: session.investors.get(role.key).pendingConcern, max_speakers: MAX_SPEAKERS,
             confidence: state.confidence, next_score_turn: state.turn_number + 1,
           });
-          try { return { key: role.key, ...parseBid(answer) }; }
-          catch { throw new PanelError('An investor returned an invalid turn bid. No speaker was selected.'); }
+          try { return { key: role.key, ...parseAssessment(answer, session.investors.get(role.key).pendingConcern) }; }
+          catch { throw new PanelError('An investor returned an invalid turn bid or concern assessment. No speaker was selected.'); }
         }));
+        // Validate all assessments before applying any score or clearing a concern.
+        for (const bid of bids) {
+          const state = before.find(s => s.key === bid.key);
+          const result = JSON.parse(session.controller.clientToolsFor(bid.key).report_investor_interest({
+            turn_number: state.turn_number + 1,
+            confidence: Math.max(0, Math.min(100, state.confidence + bid.delta)), reason: bid.scoreReason,
+          }));
+          if (!result.accepted) throw new PanelError('Investor score could not be applied.');
+          if (bid.answerStatus === 'resolved' || result.confidence === 0 || result.confidence === 100) {
+            session.investors.get(bid.key).pendingConcern = null;
+          }
+        }
         const remaining = [...bids];
         const speeches = [];
         let winner;
         // Willing investors contribute at most once, with exclusive sequential grants.
-        while ((winner = selectSpeaker(remaining, session.lastSpeaker, random))) {
+        while (speeches.length < MAX_SPEAKERS && (winner = selectSpeaker(remaining, session.lastSpeaker, random))) {
           remaining.splice(remaining.indexOf(winner), 1);
           const role = PANEL.find(role => role.key === winner.key);
           const state = session.controller.snapshot().find(s => s.key === role.key);
-          const reply = await ask(session, role, {
-            protocol: 'investor_panel_v1', phase: 'speak', round: session.turn + 1,
+          const answer = await ask(session, role, {
+            protocol: 'investor_panel_v2', phase: 'speak', round: session.turn + 1,
             founder_message: input.pitch, bid_reason: winner.reason,
+            pending_concern: session.investors.get(role.key).pendingConcern, answer_status: winner.answerStatus,
+            max_speakers: MAX_SPEAKERS,
             previous_exchange: { founder: input.pitch, responses: [...speeches] },
             confidence: state.confidence, status: state.status,
           });
+          let speech;
+          const terminal = state.confidence === 0 || state.confidence === 100;
+          try { speech = parseSpeech(answer, terminal); }
+          catch { throw new PanelError('An investor returned an invalid public reply.'); }
+          const { reply, concern } = speech;
+          const investor = session.investors.get(role.key);
+          // Never overwrite an unresolved question merely because its owner speaks again.
+          if (!terminal && !investor.pendingConcern && concern) {
+            investor.pendingConcern = { text: concern, askedRound: session.turn + 1 };
+          }
           speeches.push({ role: role.key, reply });
           session.lastSpeaker = role.key;
           session.investors.get(role.key).lastReply = reply;
@@ -191,13 +210,14 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
           const spoke = Boolean(speech);
           return { panelist: title, role: role.key, confidence: state.confidence, reason: state.reason,
             reply: speech?.reply ?? '', spoke, wantsTurn: bid?.wantsTurn ?? false,
-            status: state.status };
+            status: state.status, answerStatus: bid?.answerStatus ?? null,
+            pendingConcern: session.investors.get(role.key).pendingConcern };
         });
         session.turn++;
         return {
           sessionId: session.id,
           result: { scores: responses.map(r => r.confidence), responses, speakingOrder: speeches.map(s => s.role), speaker: first?.role ?? null,
-            selectionReason: bids.find(b => b.key === first?.role)?.reason ?? null, turn: session.turn, source: 'elevenlabs', initialScore: 50 },
+            selectionReason: bids.find(b => b.key === first?.role)?.reason ?? null, turn: session.turn, source: 'elevenlabs', initialScore: 50, maxSpeakers: MAX_SPEAKERS },
         };
       } catch (error) {
         await dispose(session);

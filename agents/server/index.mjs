@@ -1,13 +1,9 @@
-import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
+import { createPanelProvider } from './panel-provider.mjs';
 import { createApiServer } from './app.mjs';
 import { createTextPanelService } from './text-panel.mjs';
 import { createReplyAudio } from './reply-audio.mjs';
 
-const client = new ElevenLabsClient({ maxRetries: 0 });
-const getSignedUrl = async agentId => {
-  const response = await client.conversationalAi.conversations.getSignedUrl({ agentId }, { timeoutInSeconds: 15 });
-  return response.signedUrl;
-};
+const { client, getSignedUrl } = createPanelProvider();
 const textPanel = createTextPanelService({ getSignedUrl });
 const replyAudio = createReplyAudio({ textPanel, synthesize: ({ voiceId, text, signal }) => client.textToSpeech.stream(voiceId, {
   text, modelId: 'eleven_v4_turbo', outputFormat: 'mp3_44100_128',

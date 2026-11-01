@@ -1,11 +1,15 @@
 # investor-verdict
 
 ## Audio test branch
-On `test/investor-integration`, read [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md) first. This local experiment adds real-time microphone transcription and sequential streamed speech for every willing investor. The main-branch completion report below describes the earlier text-only baseline. Do not merge or deploy this audio experiment without a user request.
+On `test/investor-integration`, read [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md) first. This local experiment adds real-time microphone transcription and sequential streamed speech for at most two willing investors per founder message. The main-branch completion report below describes the earlier text-only baseline. Do not merge or deploy this audio experiment without a user request.
+
+## Two-investor rounds and testing
+Read [docs/TWO_INVESTOR_ROUNDS.md](docs/TWO_INVESTOR_ROUNDS.md). The latest rule is at most two replies, then the founder answers; each investor evaluates its own pending concern. Incomplete answers deduct at least 5 and unanswered concerns at least 10, once per substantive message. Pauses do not lower confidence. Never reinstate the four-speaker loop.
+Use `npm test` and `npm run test:panel` for free deterministic checks. `npm run test:panel:live` explicitly uses credits and isolated ElevenLabs test branches configured in `agents/panel-test-branches.json`. The runner exercises actual HTTP sessions without computer use. Do not change agent main prompts or default traffic when testing.
 
 ## Main-branch text baseline
 Read [docs/SETUP_HANDOFF.md](docs/SETUP_HANDOFF.md) for the completion report and remaining investor-audio and deployment work. Text integration is already on main; microphone transcription is wired but not manually verified, and spoken investor replies are not connected yet.
-This test branch supersedes the main baseline with audio and multiple voluntary replies. The frontend is connected to the real text backend. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) for the implemented contract and validation. Investors bid for turns dynamically, zero to four may reply per founder message, with only one speaking at a time, and all may stay silent. Scores start at 50 and can rise or fall. Earlier fixed-order and start-at-100 instructions are superseded. Backend details are in [agents/TEXT_INTEGRATION.md](agents/TEXT_INTEGRATION.md).
+This test branch supersedes the main baseline with audio and multiple voluntary replies. The frontend is connected to the real text backend. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) for the implemented contract and validation. Investors bid for turns dynamically, zero to two may reply per founder message, with only one speaking at a time, and all may stay silent. Scores start at 50 and can rise or fall. Earlier fixed-order and start-at-100 instructions are superseded. Backend details are in [agents/TEXT_INTEGRATION.md](agents/TEXT_INTEGRATION.md).
 
 ## Quick Commands
 * Clone: `git clone <repo url>`

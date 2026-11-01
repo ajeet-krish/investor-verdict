@@ -9,7 +9,7 @@ Branch: `test/investor-integration`, local experiment, not merged into main
 
 The text baseline was merged through PR #3, closing issue #4. This test branch adds live microphone transcription, streamed investor voices, and multiple voluntary replies per founder message. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for setup and validation. Do not merge or deploy this experiment without a user request.
 
-Zero to four investors can answer the same founder message. Only one speaks at a time. Every active investor privately decides whether to contribute, and may sit out. The server selects the next willing investor by relevance priority, with a previous-speaker penalty and random tie-breaking. There is no fixed rotation or requirement for all four to talk. Each contributes at most once per message. Confidence starts at 50 and can change even when an investor stays silent. All four agents use `deepseek-v41-flash` through ElevenLabs.
+Zero to two investors can answer the same founder message. Only one speaks at a time. Every active investor privately decides whether to contribute, and may sit out. After at most two replies the founder answers, possibly addressing both in one message. Each investor independently checks its pending question; partial or unanswered concerns lower its confidence. See [TWO_INVESTOR_ROUNDS.md](../docs/TWO_INVESTOR_ROUNDS.md). The server selects the next willing investor by relevance priority, with a previous-speaker penalty and random tie-breaking. There is no fixed rotation or requirement for all four to talk. Each contributes at most once per message. Confidence starts at 50 and can change even when an investor stays silent. All four agents use `deepseek-v41-flash` through ElevenLabs.
 
 ## Run locally
 
@@ -45,18 +45,21 @@ interface Evaluation {
     reply: string; // Empty for a silent investor.
     spoke: boolean;
     wantsTurn: boolean;
+    answerStatus: "none" | "resolved" | "partial" | "unanswered" | "deferred" | null;
+    pendingConcern: { text: string; askedRound: number } | null;
     status: "out" | "offered" | "nearly-out" | "concerned" | "engaged";
   }>;
-  speakingOrder: InvestorRole[]; // Zero to four unique contributors, authoritative order.
+  speakingOrder: InvestorRole[]; // Zero to two unique contributors, authoritative order.
   speaker: InvestorRole | null; // Legacy alias for the FIRST contributor only.
   selectionReason: string | null; // First contributor's metadata, not dialogue.
   turn: number;
   source: "elevenlabs";
   initialScore: 50;
+  maxSpeakers: 2;
 }
 ```
 
-The response array always contains four entries in the requested tile order, which is not the speaking order. `speakingOrder` must match exactly the roles with `spoke: true`, without duplicates. Empty order means silence. The server maintains scores and conversation history using the HttpOnly `verdict_session` cookie. A new or expired session starts at 50. A returned `turn: 1` after earlier turns means the display baseline must reset.
+The response array always contains four entries in the requested tile order, which is not the speaking order. `speakingOrder` must match exactly the roles with `spoke: true`, without duplicates and with at most two entries. Empty order means silence. The server maintains scores and conversation history using the HttpOnly `verdict_session` cookie. A new or expired session starts at 50. A returned `turn: 1` after earlier turns means the display baseline must reset.
 
 | Role | Tile |
 | --- | --- |
@@ -79,8 +82,8 @@ The server assesses scores once per founder message, regardless of how many inve
 
 ## Validation
 
-35 tests and the TypeScript/Vite build pass. Coverage includes multiple sequential speech grants, partial and complete silence, once-per-message scoring, shared history, authorized per-investor audio caches, microphone muting, cancellation, and exclusive playback.
+42 tests and the TypeScript/Vite build pass. Coverage includes multiple sequential speech grants, partial and complete silence, once-per-message scoring, shared history, authorized per-investor audio caches, microphone muting, cancellation, and exclusive playback.
 
-A live browser pitch addressed the Technical Expert and Market Researcher and asked the others to sit out. Both requested contributors answered in sequence, the other two stayed silent, and scores were 55/55/50/50. The final audio finished at 15.86 seconds with no playback error, and input became available again. Screenshot: `agents/multi-investor-audio-preview.png`.
+Before the new two-speaker policy, a live browser pitch addressed the Technical Expert and Market Researcher and asked the others to sit out. Both requested contributors answered in sequence, the other two stayed silent, and scores were 55/55/50/50. The final audio finished at 15.86 seconds with no playback error, and input became available again. Screenshot: `agents/multi-investor-audio-preview.png`.
 
 The original single-speaker text baseline and historical checks are documented in [SETUP_HANDOFF.md](../docs/SETUP_HANDOFF.md). The test branch supersedes its at-most-one-reply-per-message policy.
