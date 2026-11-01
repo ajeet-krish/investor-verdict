@@ -22,14 +22,15 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
         sent.push({ role: role.key, packet });
         config.onMessage({ source: 'ai', message: 'Intermediate acknowledgement.' });
         if (packet.phase === 'assess') {
-          const report = { turn_number: ++scoreTurn, confidence: Math.min(100, 50 + scoreTurn * scoreChange), reason: 'Concrete customer evidence.' };
+          const delta = typeof scoreChange === 'function' ? scoreChange(role.key, packet.round) : scoreChange;
+          const report = { turn_number: ++scoreTurn, confidence: Math.max(0, Math.min(100, 50 + scoreTurn * delta)), reason: 'Concrete customer evidence.' };
           assert.equal(JSON.parse(config.clientTools.report_investor_interest(report)).accepted, false);
           // A second tool call cannot change confidence twice for one founder message.
           const duplicate = config.clientTools.report_investor_interest({ ...report, turn_number: scoreTurn + 1 });
           assert.equal(JSON.parse(duplicate).accepted, false);
           queueMicrotask(() => {
             const result = bid(role.key, packet.round, packet);
-            const assessment = { ...result, substantive: true, answer_status: packet.pending_concern ? 'resolved' : 'none', score_delta: scoreChange, score_reason: 'Concrete customer evidence.' };
+            const assessment = { ...result, substantive: true, answer_status: packet.pending_concern ? 'resolved' : 'none', score_delta: delta, score_reason: delta < 0 ? 'There is no evidence that customers need this.' : 'Concrete customer evidence.' };
             config.onMessage({ source: 'ai', message: typeof result === 'string' ? result : JSON.stringify(assessment) });
             config.onIncomingEvent({ type: 'agent_response_complete' });
           });
@@ -37,7 +38,7 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
           blockedScores.push(JSON.parse(config.clientTools.report_investor_interest({ turn_number: scoreTurn + 1, confidence: 90, reason: 'Must be rejected in speak phase.' })));
           if (failSpeech) return config.onError();
           const finish = () => {
-            config.onMessage({ source: 'ai', message: JSON.stringify({ reply: `${role.key}: Which customers have paid?`, concern: packet.confidence === 0 || packet.confidence === 100 ? null : 'Which customers have paid?' }) });
+            config.onMessage({ source: 'ai', message: JSON.stringify({ reply: packet.departure ? "I'm passing because customers haven't been validated. I'm leaving the call." : `${role.key}: Which customers have paid?`, concern: packet.confidence === 0 || packet.confidence === 100 ? null : 'Which customers have paid?' }) });
             config.onIncomingEvent({ type: 'agent_response_complete' });
           };
           if (holdSpeech) releaseSpeech = finish;
@@ -49,6 +50,58 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
   } };
 }
 const makeService = (sdk, options = {}) => createTextPanelService({ env, sdk, getSignedUrl: async id => `wss://test/${id}`, random: () => 0, ...options });
+
+test('all four zero-confidence investors get sequential farewells even when every bid passes', async () => {
+  const sdk = fakeSdk({ bid: () => pass, scoreChange: -20, holdSpeech: true });
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    await service.evaluate(pitch, first.sessionId);
+    const ending = service.evaluate(pitch, first.sessionId);
+    const grants = () => sdk.sent.filter(s => s.packet.phase === 'speak');
+    for (let i = 0; i < 4; i++) {
+      await setImmediate();
+      assert.equal(grants().length, i + 1, 'Only one farewell generation has the floor at a time');
+      assert.equal(grants()[i].packet.departure, true);
+      assert.equal(grants()[i].packet.confidence, 0);
+      assert.match(grants()[i].packet.exit_reason, /no evidence/);
+      sdk.finishSpeech();
+    }
+    const { result } = await ending;
+    assert.deepEqual(result.departureOrder, PANEL.map(p => p.key));
+    assert.deepEqual(result.speakingOrder, result.departureOrder);
+    assert.deepEqual(result.scores, [0, 0, 0, 0]);
+    assert.equal(result.maxSpeakers, 2, 'Ordinary reply cap remains two');
+    assert.ok(result.responses.every(r => r.spoke && !r.wantsTurn && r.pendingConcern === null));
+    for (const role of result.speakingOrder) assert.match(service.getSpeech(first.sessionId, 3, role).text, /leaving the call/);
+    assert.equal(sdk.ended.length, 4, 'Departed provider connections close');
+    const sent = sdk.sent.length;
+    const later = await service.evaluate(pitch, first.sessionId);
+    assert.equal(sdk.sent.length, sent, 'Departed investors never assess or speak again');
+    assert.deepEqual(later.result.speakingOrder, []);
+    assert.deepEqual(later.result.departureOrder, []);
+    assert.deepEqual(later.result.departedRoles, PANEL.map(p => p.key));
+  } finally { await service.close(); }
+});
+
+for (const exitingCount of [1, 3]) test(`${exitingCount} mandatory farewells precede normal bids without consuming ordinary slots`, async () => {
+  const leaving = PANEL.slice(0, exitingCount).map(p => p.key);
+  const sdk = fakeSdk({ bid: role => leaving.includes(role) ? pass : willing(100),
+    scoreChange: role => leaving.includes(role) ? -20 : 0 });
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    await service.evaluate(pitch, first.sessionId);
+    const { result } = await service.evaluate(pitch, first.sessionId);
+    assert.deepEqual(result.departureOrder, leaving);
+    assert.deepEqual(result.speakingOrder.slice(0, exitingCount), leaving);
+    assert.equal(result.speakingOrder.length, exitingCount + Math.min(2, 4 - exitingCount));
+    assert.equal(new Set(result.speakingOrder).size, result.speakingOrder.length);
+    const next = await service.evaluate(pitch, first.sessionId);
+    assert.ok(next.result.speakingOrder.every(role => !leaving.includes(role)));
+    assert.deepEqual(next.result.departureOrder, []);
+  } finally { await service.close(); }
+});
 
 test('existing payload keeps four scores, with one dynamically chosen speaker and shared history', async () => {
   const sdk = fakeSdk({ bid: (role, round) => role === (round === 1 ? 'interrogator' : 'sympathizer') ? willing(95) : pass });

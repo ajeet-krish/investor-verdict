@@ -19,7 +19,7 @@ Coding agent sends a founder suggestion through the CLI
                   |
 Live app receives it and submits when the current audio is finished
                   |
-Existing ElevenLabs panel evaluates it, at most two investors reply
+Existing ElevenLabs panel evaluates it, all newly-zero investors say farewell, then at most two ordinary replies
                   |
 App displays scores and plays voices; CLI receives the same panel result
 ```

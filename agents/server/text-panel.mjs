@@ -193,12 +193,20 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
             session.investors.get(bid.key).pendingConcern = null;
           }
         }
-        const remaining = [...bids];
+        const scored = session.controller.snapshot();
+        const departures = bids.filter(bid => before.find(s => s.key === bid.key).confidence > 0 &&
+          scored.find(s => s.key === bid.key).confidence === 0);
+        const remaining = bids.filter(bid => !departures.includes(bid));
+        const departureOrder = departures.map(bid => bid.key);
         const speeches = [];
-        let winner;
-        // Willing investors contribute at most once, with exclusive sequential grants.
-        while (speeches.length < MAX_SPEAKERS && (winner = selectSpeaker(remaining, session.lastSpeaker, random))) {
-          remaining.splice(remaining.indexOf(winner), 1);
+        let regularSpeakers = 0;
+        // Newly out investors always receive a farewell grant first, even if
+        // they passed their bid. Only ordinary replies consume the two slots.
+        while (departures.length || regularSpeakers < MAX_SPEAKERS) {
+          const departure = departures.length > 0;
+          const winner = departure ? departures.shift() : selectSpeaker(remaining, session.lastSpeaker, random);
+          if (!winner) break;
+          if (!departure) { remaining.splice(remaining.indexOf(winner), 1); regularSpeakers++; }
           const role = PANEL.find(role => role.key === winner.key);
           const state = session.controller.snapshot().find(s => s.key === role.key);
           const answer = await ask(session, role, {
@@ -208,6 +216,8 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
             max_speakers: MAX_SPEAKERS,
             previous_exchange: { founder: input.pitch, responses: [...speeches] },
             confidence: state.confidence, status: state.status,
+            departure, exit_reason: departure ? state.reason : null,
+            ...(departure ? { instruction: 'You have the immediate farewell turn because your confidence reached zero. Briefly explain the concrete reason in exit_reason, say you are passing and leaving the call. No new question. Return JSON with reply and concern: null. Farewells are exempt from the normal two-speaker limit.' } : {}),
           });
           let speech;
           const terminal = state.confidence === 0 || state.confidence === 100;
@@ -222,6 +232,11 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
           speeches.push({ role: role.key, reply });
           session.lastSpeaker = role.key;
           session.investors.get(role.key).lastReply = reply;
+          if (departure) {
+            // Farewell audio is synthesized from the saved reply, so the live
+            // investor connection can close without preventing its playback.
+            await Promise.allSettled([investor.connection.endSession()]);
+          }
         }
         const first = speeches[0];
         session.lastExchange = { founder: input.pitch, speaker: first?.role ?? null,
@@ -244,6 +259,7 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         return {
           sessionId: session.id,
           result: { scores: responses.map(r => r.confidence), responses, speakingOrder: speeches.map(s => s.role), speaker: first?.role ?? null,
+            departureOrder, departedRoles: PANEL.filter(role => states.find(s => s.key === role.key).confidence === 0).map(role => role.key),
             selectionReason: bids.find(b => b.key === first?.role)?.reason ?? null, turn: session.turn, source: 'elevenlabs', initialScore: 50, maxSpeakers: MAX_SPEAKERS },
         };
       } catch (error) {

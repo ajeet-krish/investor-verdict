@@ -6,7 +6,11 @@ import { createReplyAudio } from '../server/reply-audio.mjs';
 import { scenarioSdk, mockEnv } from './mock-panel.mjs';
 
 export function checkTurn(result, priorScores, expected = {}) {
-  assert.ok(Array.isArray(result.speakingOrder) && result.speakingOrder.length <= 2, 'At most two speakers');
+  const departures = PANEL.filter((_, i) => priorScores[i] > 0 && result.scores[i] === 0).map(r => r.key);
+  assert.deepEqual([...result.departureOrder].sort(), [...departures].sort(), 'Every newly out investor gets a farewell');
+  assert.deepEqual(result.speakingOrder.slice(0, departures.length), result.departureOrder, 'Farewells have priority');
+  assert.ok(Array.isArray(result.speakingOrder) && result.speakingOrder.length - departures.length <= 2, 'At most two ordinary speakers plus farewells');
+  assert.deepEqual([...result.departedRoles].sort(), PANEL.filter((_, i) => result.scores[i] === 0).map(r => r.key).sort());
   assert.equal(new Set(result.speakingOrder).size, result.speakingOrder.length, 'No repeated speaker');
   assert.equal(result.responses.length, 4);
   assert.equal(result.maxSpeakers, 2);

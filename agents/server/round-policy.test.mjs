@@ -46,6 +46,20 @@ for (const scenario of scenarios) test(`HTTP multi-input scenario: ${scenario.na
   }
 });
 
+test('HTTP serves all four farewell audio streams, then never replays departed investors', async () => {
+  const scenario = { name: 'four-exits', turns: Array.from({ length: 4 }, (_, turn) => ({
+    pitch: 'Synthetic test: there is no supporting evidence.',
+    expect: turn === 3 ? {} : { investors: Object.fromEntries(PANEL.map((role, i) => [role.key, {
+      scoreDelta: -20, answerStatus: turn === 1 && i < 2 ? 'resolved' : 'none',
+    }])) },
+  })) };
+  const report = await runScenario(scenario, { audio: true });
+  assert.equal(report.passed, true, JSON.stringify(report.records.map(r => r.checks)));
+  assert.equal(report.records[2].audio.length, 4);
+  assert.equal(report.records[2].result.departureOrder.length, 4);
+  assert.equal(report.records[3].audio.length, 0);
+});
+
 test('simultaneous founder submissions are rejected with 409, without duplicate scores or replies', async t => {
   const scenario = scenarios.find(s => s.name === 'both');
   const sdk = scenarioSdk(scenario);

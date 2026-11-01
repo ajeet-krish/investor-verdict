@@ -9,6 +9,14 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 .bar{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#c9c9cc;margin:0 2px 10px}
 .rec{display:inline-block;width:9px;height:9px;border-radius:50%;background:#d93a3a;margin-right:8px}
 .g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.g[data-count="3"] .t[data-position="1"]{grid-column:1 / -1;width:calc((100% - 10px)/2);justify-self:center}
+.g[data-count="1"]{grid-template-columns:minmax(0,1fr)}
+.g[data-count="0"]{display:none}
+.call-empty{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:#242427;border-radius:10px}
+.call-empty h2{font-size:22px;margin:0 0 8px}
+.call-empty p{color:#c4c4c8;font-size:14px;max-width:360px;line-height:1.5}
+.call-empty button{border:0;border-radius:8px;padding:11px 18px;font:inherit;cursor:pointer;background:#fff;color:#1b1b1d}
+.call-empty button:focus-visible{outline:3px solid #3fd16a;outline-offset:3px}
 .t{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background-size:cover;background-position:center}
 .photos-off .t{background-image:none!important}
 .nm{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);padding:3px 9px;border-radius:5px;font-size:12px;display:flex;align-items:center;gap:7px}
@@ -68,7 +76,9 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 .t.responding{outline:2px solid #3fd16a;outline-offset:-2px}
-.t.responding .nm::after{content:" · Responded";color:#3fd16a}
+.t.responding .nm::after{content:" · Speaking";color:#3fd16a}
+.t.leaving.responding{outline-color:#ff9995}
+.t.leaving.responding .nm::after{content:" · Final statement";color:#ff9995}
 .msg.investor{align-self:flex-start;background:#25382e;white-space:pre-wrap}
 .tb button:disabled{opacity:.5;cursor:default}
 
@@ -91,6 +101,7 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 @media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.tips{position:static}}
 .ctl{display:none}
 @media (max-width:540px){.g{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:540px){.g[data-count="3"] .t[data-position="1"]{grid-column:auto;width:100%}}
 
 
 .suggestion-caption{font-size:12px;line-height:1.5;margin:0;color:var(--ink2)}

@@ -5,18 +5,10 @@ import type { AgentSubmission } from "./agent-bridge";
 import { createRealtimeVoice } from "./realtime-voice";
 import type { VoiceState } from "./realtime-voice";
 import { createReplyPlayer } from "./reply-player";
+import { createCallRoster, playInvestorTurns, validateEvaluation } from "./investor-call";
+import type { Evaluation, InvestorRole } from "./investor-call";
 
 /* ---------- Types ---------- */
-
-type InvestorRole = "technical_expert" | "market_signals_researcher" | "interrogator" | "sympathizer";
-
-interface Evaluation {
-  scores: number[];
-  responses: { role: InvestorRole; panelist: string; reply: string; spoke: boolean }[];
-  speakingOrder: InvestorRole[];
-  turn: number;
-  bridgeRevision?: number;
-}
 
 interface Seed {
   role: InvestorRole;
@@ -82,24 +74,7 @@ async function post(path: string, body: unknown): Promise<unknown> {
 
 async function evaluate(pitch: string, current: number[], job?: AgentSubmission): Promise<Evaluation> {
   const raw = await post("/evaluate", { pitch, panelists: SEEDS.map(s => s.name), scores: current, ...(job ? { bridgeJobId: job.id, bridgeAuto: job.automatic } : {}) });
-  if (!raw || typeof raw !== "object") throw new Error("Unexpected investor response.");
-  const data = raw as Evaluation;
-  if (!Array.isArray(data.scores) || data.scores.length !== SEEDS.length ||
-      !data.scores.every(s => typeof s === "number" && Number.isFinite(s) && s >= 0 && s <= 100) ||
-      !Number.isSafeInteger(data.turn) || data.turn < 1 ||
-      !Array.isArray(data.responses) || data.responses.length !== SEEDS.length ||
-      !data.responses.every((r, i) => r && r.role === SEEDS[i].role && r.panelist === SEEDS[i].name &&
-        typeof r.reply === "string" && typeof r.spoke === "boolean" &&
-        (r.spoke ? r.reply.trim().length > 0 : r.reply === ""))) {
-    throw new Error("Unexpected investor response.");
-  }
-  const speakers = data.responses.filter(r => r.spoke);
-  if (!Array.isArray(data.speakingOrder) || data.speakingOrder.length > 2 || data.speakingOrder.length !== speakers.length ||
-      new Set(data.speakingOrder).size !== speakers.length ||
-      !data.speakingOrder.every(role => speakers.some(r => r.role === role))) {
-    throw new Error("Unexpected investor speaker.");
-  }
-  return data;
+  return validateEvaluation(raw, SEEDS, current);
 }
 
 /* ---------- Photos ---------- */
@@ -231,6 +206,8 @@ function main(): void {
   promptInput.maxLength = 4000;
 
   const panel = SEEDS.map((seed, i) => buildTile(seed, i, grid));
+  const roster = createCallRoster(panel, grid, must<HTMLElement>(document, '#call-empty'));
+  const restartBtn = must<HTMLButtonElement>(document, '#call-restart');
   let busy = false;
   let interim = "";
   let notice = "";
@@ -245,9 +222,10 @@ function main(): void {
   const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
     busy = value;
-    for (const control of [send, startBtn, promptInput]) control.disabled = value;
+    for (const control of [send, promptInput]) control.disabled = value || roster.empty;
+    startBtn.disabled = restartBtn.disabled = value;
     resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
-    micBtn.disabled = value && voiceState === 'off';
+    micBtn.disabled = roster.empty || (value && voiceState === 'off');
     bridge?.refresh();
     suggestions?.refresh();
   };
@@ -257,7 +235,8 @@ function main(): void {
 
   /* status line */
   const renderStatus = (): void => {
-    if (notice) statusEl.textContent = notice;
+    if (roster.empty) statusEl.textContent = 'All investors have left. Reset to try another pitch.';
+    else if (notice) statusEl.textContent = notice;
     else if (audioPlaying) statusEl.textContent = `${speakingName} is speaking. Your microphone is paused.`;
     else if (busy) statusEl.textContent = "The panel is deliberating…";
     else if (voiceState === 'connecting') statusEl.textContent = 'Connecting live audio… Allow microphone access when asked.';
@@ -287,7 +266,7 @@ function main(): void {
       p.change.textContent = delta === null ? '' : signed(delta);
       p.change.dataset.direction = delta === null || delta === 0 ? 'same' : delta > 0 ? 'up' : 'down';
       p.verdict.hidden = v !== 0 && v !== 100;
-      p.verdict.textContent = v === 0 ? 'Passed' : v === 100 ? 'Simulated offer' : '';
+      p.verdict.textContent = v === 0 ? 'Leaving the call' : v === 100 ? 'Simulated offer' : '';
     });
   };
 
@@ -317,6 +296,7 @@ function main(): void {
     try {
       let before = panel.map(p => p.score);
       const result = await evaluate(text, before, job);
+      if (current !== epoch) return;
       bridgeRevision = result.bridgeRevision;
       if (result.turn === 1 && lastTurn > 0) {
         before = panel.map(() => 50);
@@ -324,27 +304,36 @@ function main(): void {
       }
       lastTurn = result.turn;
       panel.forEach((p, i) => (p.score = result.scores[i]));
+      roster.begin(result);
       draw(before);
-      void suggestions?.complete(result.bridgeRevision);
+      if (result.departedRoles.length === panel.length) suggestions?.end();
+      else void suggestions?.complete(result.bridgeRevision);
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
       if (!result.speakingOrder.length) showNotice("The panel is listening.");
-      for (const role of result.speakingOrder) {
-        if (current !== epoch) return;
-        const reply = result.responses.find(r => r.role === role)!;
-        showSpeaker(role);
-        addMsg("investor", `${reply.panelist}: ${reply.reply}`);
-        if (currentAudio === audioGeneration) {
-          notice = "";
+      await playInvestorTurns(result, {
+        current: () => current === epoch,
+        present: reply => {
+          showSpeaker(reply.role);
           speakingName = reply.panelist;
-          audioPlaying = true;
-          skipAudio.hidden = false;
-          setBusy(true);
-          renderStatus();
-          const played = await player.play(`${API_URL}/reply-audio?turn=${result.turn}&role=${role}`);
-          if (current !== epoch) return;
-          if (!played) showNotice('Audio stopped or unavailable. The investor reply is in the chat.');
-        }
-      }
+          addMsg("investor", `${reply.panelist}: ${reply.reply}`);
+        },
+        play: async role => {
+          if (currentAudio === audioGeneration) {
+            notice = "";
+            audioPlaying = true;
+            skipAudio.hidden = false;
+            setBusy(true);
+            renderStatus();
+            const played = await player.play(`${API_URL}/reply-audio?turn=${result.turn}&role=${role}`);
+            if (current !== epoch) return;
+            if (!played) showNotice('Audio stopped or unavailable. The investor reply is in the chat.');
+          }
+        },
+        depart: role => {
+          roster.leave(role);
+          addMsg('sys', `${panel.find(p => p.role === role)!.name} left the call.`);
+        },
+      });
     } catch (err) {
       suggestions?.failed();
       const message = err instanceof Error ? err.message : "The panel couldn't respond.";
@@ -357,9 +346,10 @@ function main(): void {
         showSpeaker(null);
         skipAudio.hidden = true;
         replyAudio.hidden = true;
-        await bridge?.ready(bridgeRevision);
+        if (roster.empty) { voice.stop(); bridge?.pauseForHuman(); }
+        else await bridge?.ready(bridgeRevision);
         setBusy(false);
-        voice.resume();
+        if (!roster.empty) voice.resume();
         renderStatus();
         promptInput.focus();
       }
@@ -368,7 +358,7 @@ function main(): void {
 
   const submit = (raw: string, via: "text" | "voice"): void => {
     const text = raw.trim();
-    if (!text || busy || app.hidden) return;
+    if (!text || busy || app.hidden || roster.empty) return;
     if (text.length > 4000) { voice.resume(); showNotice("Please keep your pitch under 4,000 characters."); return; }
     bridge?.pauseForHuman();
     promptInput.value = "";
@@ -399,10 +389,10 @@ function main(): void {
   });
 
   bridge = createAgentBridgeUI(API_URL, {
-    busy: () => busy, active: () => !app.hidden,
+    busy: () => busy || roster.empty, active: () => !app.hidden && !roster.empty,
     notice: showNotice,
     submit: async (text, job) => {
-      if (busy || app.hidden) return;
+      if (busy || app.hidden || roster.empty) return;
       addMsg('you agent', text);
       await judge(text, job);
     },
@@ -411,7 +401,7 @@ function main(): void {
   micBtn.setAttribute('aria-label', 'Start live audio');
   micBtn.addEventListener('click', () => {
     if (voice.enabled) { audioGeneration++; voice.stop(); player.stop(); }
-    else if (!busy) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
+    else if (!busy && !roster.empty) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
   });
   skipAudio.addEventListener('click', () => player.stop());
   window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); suggestions?.close(); voice.stop(); player.stop(); });
@@ -452,6 +442,7 @@ function main(): void {
       }
       bridge?.reset();
       panel.forEach(p => (p.score = 50));
+      roster.reset();
       lastTurn = 0;
       draw();
       log.replaceChildren();
@@ -467,6 +458,7 @@ function main(): void {
     }
   };
   resetBtn.addEventListener("click", () => { void resetSession(); });
+  restartBtn.addEventListener('click', () => { void resetSession(); });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -498,9 +490,9 @@ function main(): void {
   }, 1000);
 
   suggestions = createPitchSuggestions(API_URL, {
-    busy: () => busy,
+    busy: () => busy || roster.empty,
     attach: text => {
-      if (busy || app.hidden) return;
+      if (busy || app.hidden || roster.empty) return;
       bridge?.pauseForHuman();
       voice.stop();
       promptInput.value = text;

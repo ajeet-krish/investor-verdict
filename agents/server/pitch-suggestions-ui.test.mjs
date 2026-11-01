@@ -36,3 +36,10 @@ test('model failure does not attach text or make another paid request',async t=>
   f.ui.begin();await f.ui.complete(3);assert.equal(calls,1);assert.equal(f.attached.length,0);
   assert.equal(f.elements.get('pitch-status').textContent,'Model unavailable');
 });
+test('the last investor leaving cancels late suggestions and reset restores practice pitches', async t => {
+  let release; const f = setup(t, () => new Promise(resolve => { release = resolve; }));
+  const pending = f.ui.complete(4); f.ui.end(); release(response(4)); await pending;
+  assert.equal(f.buttons().length, 0);
+  assert.equal(f.elements.get('pitch-heading').textContent, 'Call complete');
+  f.ui.reset(); assert.equal(f.buttons().length, 3);
+});

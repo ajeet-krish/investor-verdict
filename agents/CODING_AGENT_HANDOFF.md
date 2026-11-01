@@ -11,6 +11,8 @@ Read [the pipeline guide](../docs/CODING_AGENT_PIPELINE.md). This is the contrac
 7. After a completed result, read updated context before another proposal. Use a new request ID for a new approved founder message. Only one waiting proposal is allowed. Respect the requested number of rounds; do not run an endless paid loop.
 8. On 409, refresh context and reconsider the draft. On failed results, do not retry automatically. On 401/410, stop and have the coder reconnect if they want to continue. Reset/Leave/Disconnect revoke the old token.
 
-Use `npm test` and `npm run test:bridge` for free checks. `npm run test:bridge:live -- --audio` consumes credits. The server-generated results must preserve the at-most-two-investor rule and independent concern scoring documented in [TWO_INVESTOR_ROUNDS.md](../docs/TWO_INVESTOR_ROUNDS.md).
+Use `npm test` and `npm run test:bridge` for free checks. `npm run test:bridge:live -- --audio` consumes credits. The server-generated results must preserve the at-most-two-ordinary-replies rule, with all newly-zero investors receiving priority farewells outside that limit, and independent concern scoring documented in [TWO_INVESTOR_ROUNDS.md](../docs/TWO_INVESTOR_ROUNDS.md).
 
 This CLI connects to the app, not directly to ElevenLabs. It shares the live call's backend context and does not require the coding agent to receive the ElevenLabs API key. Another coder's app on another machine is a separate connection; localhost addresses cannot be reached from an unrelated cloud session.
+
+When every investor has zero confidence, the call is complete. The app plays all farewells, removes tiles sequentially and pauses agent control. Preserve the transcript and wait for the coder to reset; do not keep proposing inputs to an empty panel.

@@ -25,7 +25,7 @@ Validation: TypeScript/build, all 50 tests, `npm run test:panel` and `npm run te
 
 The text baseline was merged through PR #3, closing issue #4. This test branch adds live microphone transcription, streamed investor voices, and multiple voluntary replies per founder message. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for setup and validation. The user authorized the main merge; production deployment remains separate work.
 
-Zero to two investors can answer the same founder message. Only one speaks at a time. Every active investor privately decides whether to contribute, and may sit out. After at most two replies the founder answers, possibly addressing both in one message. Each investor independently checks its pending question; partial or unanswered concerns lower its confidence. See [TWO_INVESTOR_ROUNDS.md](../docs/TWO_INVESTOR_ROUNDS.md). The server selects the next willing investor by relevance priority, with a previous-speaker penalty and random tie-breaking. There is no fixed rotation or requirement for all four to talk. Each contributes at most once per message. Confidence starts at 50 and can change even when an investor stays silent. All four agents use `deepseek-v41-flash` through ElevenLabs.
+Zero to two investors can give ordinary replies to the same founder message. Every newly-zero investor gets an additional priority farewell, even if all four leave together. Only one speaks at a time. Every active investor privately decides whether to contribute, and may sit out. After at most two replies the founder answers, possibly addressing both in one message. Each investor independently checks its pending question; partial or unanswered concerns lower its confidence. See [TWO_INVESTOR_ROUNDS.md](../docs/TWO_INVESTOR_ROUNDS.md). The server selects the next willing investor by relevance priority, with a previous-speaker penalty and random tie-breaking. There is no fixed rotation or requirement for all four to talk. Each contributes at most once per message. Confidence starts at 50 and can change even when an investor stays silent. All four agents use `deepseek-v41-flash` through ElevenLabs.
 
 ## Run locally
 
@@ -66,7 +66,9 @@ interface Evaluation {
     pendingConcern: { text: string; askedRound: number } | null;
     status: "out" | "offered" | "nearly-out" | "concerned" | "engaged";
   }>;
-  speakingOrder: InvestorRole[]; // Zero to two unique contributors, authoritative order.
+  speakingOrder: InvestorRole[]; // Farewells first, then at most two ordinary contributors.
+  departureOrder: InvestorRole[]; // Newly-zero roles, a prefix of speakingOrder.
+  departedRoles: InvestorRole[]; // All zero-score roles, including earlier departures.
   speaker: InvestorRole | null; // Legacy alias for the FIRST contributor only.
   selectionReason: string | null; // First contributor's metadata, not dialogue.
   turn: number;
@@ -76,7 +78,7 @@ interface Evaluation {
 }
 ```
 
-The response array always contains four entries in the requested tile order, which is not the speaking order. `speakingOrder` must match exactly the roles with `spoke: true`, without duplicates and with at most two entries. Empty order means silence. The server maintains scores and conversation history using the HttpOnly `verdict_session` cookie. A new or expired session starts at 50. A returned `turn: 1` after earlier turns means the display baseline must reset.
+The response array always contains four entries in the requested tile order, which is not the speaking order. `speakingOrder` must match exactly the roles with `spoke: true`, without duplicates, with every newly-zero farewell first and at most two additional ordinary replies. Empty order means silence. The server maintains scores and conversation history using the HttpOnly `verdict_session` cookie. A new or expired session starts at 50. A returned `turn: 1` after earlier turns means the display baseline must reset.
 
 | Role | Tile |
 | --- | --- |
@@ -88,9 +90,9 @@ The response array always contains four entries in the requested tile order, whi
 ## Implemented frontend flow
 
 1. Validate scores, role identities, replies, and `speakingOrder`. Update all four scores from the server.
-2. Iterate `speakingOrder`. Append each corresponding reply with `textContent`, highlight that investor, and await its audio completion before moving on. Never render private bids or score explanations as dialogue.
+2. Iterate `speakingOrder`. Append each corresponding reply with `textContent`, highlight that investor, and await its audio completion before moving on. If the role is in `departureOrder`, remove its tile after playback or Skip and resize the grid. Never render private bids or score explanations as dialogue.
 3. Request `GET /api/reply-audio?turn=N&role=ROLE` with the same cookie. The server authorizes only contributors in the latest completed round and chooses their voice. Arbitrary text and voice IDs are not accepted.
-4. Pause the live microphone during the entire evaluation and playback sequence. Resume only after the full round. A single audio element prevents overlapping voices.
+4. Pause the live microphone during the entire evaluation and playback sequence. Resume only after the full round if any investor remains. A single audio element prevents overlapping voices.
 5. Skip reply stops the current audio and advances to the next contributor. Stop live audio cancels current and remaining automatic playback; text replies remain available. Blocked autoplay exposes the player for manual Play or Skip.
 6. Reset and Leave stop the sequence and microphone, call `POST /api/reset`, then clear the transcript and restore scores to 50. A generation counter prevents later replies from an old sequence. Reset/Leave are disabled during evaluation to avoid cookie races, but available during playback.
 7. Keep input disabled while evaluating or playing. There is no queued founder submission. Provider errors preserve text for explicit retry; never retry paid requests automatically or silently substitute heuristic scores.
@@ -177,3 +179,12 @@ Reproduction: `npm run test:coach:live -- --case pantrypal` supplies the same VP
 Owner: Arjun Behl. Branch: `feat/live-reply-coach`. The reported failure came from a bid-only provider response missing the assessment fields. The backend now repeats the full response contract, requests at most one correction for that investor on the same turn, and then lets it sit out if still invalid. Other investors continue. No score or pending concern is lost and no extra deduction is applied. `assessmentStatus` exposes valid/repaired/unavailable results; unavailable has `answerStatus: null`, unchanged confidence and an explanatory private `reason`. No frontend payload change is required to keep rendering scores and speech. This limited correction can consume one extra ElevenLabs response per affected investor; connection failures/timeouts and speech are not retried.
 
 Meaningful score movements now have magnitude 10-20. Prompt targets are +10/+15/+20 for increasingly strong evidence; partial answers lose at least 10 and unanswered concerns at least 15. Neutral/repeated evidence and pauses stay at zero. Endpoint clamping may produce a smaller final movement. All four isolated app branch prompts match the new policy. Start a fresh call after restarting the server to load them.
+
+
+## Zero-confidence exits and adaptive grid
+
+Owner: Arjun Behl. Branch: `feat/live-reply-coach`. Newly-zero investors now receive mandatory farewell grants before all normal bids, even if they passed or more than two are leaving. Each statement explains its actual score reason and ends without a question. Provider sessions for departed roles close after generation; saved farewell audio remains available. All four scores/responses remain in the API for stable role indexing, while `departureOrder` and `departedRoles` tell the UI who is leaving now versus already gone. `maxSpeakers` continues to be 2 for ordinary replies only.
+
+`src/investor-call.ts` validates the expanded contract, maintains call membership and sequences display/playback/departure. `main.ts` removes each tile after its own audio completes, fails or is skipped, retaining its statement in the transcript. The grid changes through four/three/two/one/zero visible tiles. The empty call retains feedback and offers Try a new pitch; human input, microphone, agent submissions and suggestion generation stop until reset. Reset restores all investors and discards late playback/suggestion callbacks. A fresh provider session also restores the grid.
+
+83 tests cover backend priority, four audio streams, UI removal timing, reset during farewell and stale suggestions. A live six-turn ElevenLabs run confirmed all four hit zero together on turn three, gave final statements with nonempty audio, and stayed silent afterward. See [investor-farewells.json](../docs/test-results/investor-farewells.json). No computer use was needed; actual browser rendering/device playback was not re-certified.

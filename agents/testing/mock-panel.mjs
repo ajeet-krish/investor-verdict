@@ -22,11 +22,13 @@ export function scenarioSdk(scenario) {
           reason: willing ? 'A useful clarification.' : 'Nothing to add.',
           substantive: status !== 'deferred', answer_status: status,
           // Deliberately optimistic values prove the server enforces unresolved deductions.
-          score_delta: status === 'deferred' ? 0 : wanted ? 5 : 0,
+          score_delta: status === 'deferred' ? 0 : wanted?.scoreDelta ?? (wanted ? 5 : 0),
           score_reason: `Fixture assessment: ${status}.` };
       } else {
         const question = packet.pending_concern?.text ?? questions[role];
-        result = { reply: question, concern: question };
+        result = packet.departure
+          ? { reply: "I'm passing because the evidence is missing. I'm leaving the call.", concern: null }
+          : { reply: question, concern: question };
       }
       queueMicrotask(() => {
         config.onMessage({ source: 'ai', message: JSON.stringify(result) });

@@ -1,0 +1,186 @@
+{
+  "mode": "live",
+  "at": "2026-11-01T20:47:03.741Z",
+  "scenario": "zero-confidence-farewells",
+  "passed": true,
+  "turns": [
+    {
+      "turn": 1,
+      "scores": [
+        30,
+        30,
+        30,
+        30
+      ],
+      "speakingOrder": [
+        "technical_expert",
+        "sympathizer"
+      ],
+      "departureOrder": [],
+      "departedRoles": [],
+      "farewells": [],
+      "audio": [
+        {
+          "role": "technical_expert",
+          "bytes": 120834
+        },
+        {
+          "role": "sympathizer",
+          "bytes": 201500
+        }
+      ],
+      "checks": "passed"
+    },
+    {
+      "turn": 2,
+      "scores": [
+        10,
+        10,
+        10,
+        10
+      ],
+      "speakingOrder": [
+        "interrogator",
+        "technical_expert"
+      ],
+      "departureOrder": [],
+      "departedRoles": [],
+      "farewells": [],
+      "audio": [
+        {
+          "role": "interrogator",
+          "bytes": 138806
+        },
+        {
+          "role": "technical_expert",
+          "bytes": 105787
+        }
+      ],
+      "checks": "passed"
+    },
+    {
+      "turn": 3,
+      "scores": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "speakingOrder": [
+        "technical_expert",
+        "market_signals_researcher",
+        "interrogator",
+        "sympathizer"
+      ],
+      "departureOrder": [
+        "technical_expert",
+        "market_signals_researcher",
+        "interrogator",
+        "sympathizer"
+      ],
+      "departedRoles": [
+        "technical_expert",
+        "market_signals_researcher",
+        "interrogator",
+        "sympathizer"
+      ],
+      "farewells": [
+        {
+          "role": "technical_expert",
+          "reply": "You refused every question and kept fabricated traction claims, so I can't back this. I'm passing and leaving the call."
+        },
+        {
+          "role": "market_signals_researcher",
+          "reply": "With no real customer evidence and fabricated traction you refuse to correct, I see no demand to invest in. I'm passing and leaving the call."
+        },
+        {
+          "role": "interrogator",
+          "reply": "You refused to validate demand, costs or safety and will keep invented traction claims, so I'm passing and leaving the call."
+        },
+        {
+          "role": "sympathizer",
+          "reply": "You refused to validate demand, costs or safety and plan to keep invented traction claims, so I'm passing and leaving the call."
+        }
+      ],
+      "audio": [
+        {
+          "role": "technical_expert",
+          "bytes": 125013
+        },
+        {
+          "role": "market_signals_researcher",
+          "bytes": 156778
+        },
+        {
+          "role": "interrogator",
+          "bytes": 141314
+        },
+        {
+          "role": "sympathizer",
+          "bytes": 143821
+        }
+      ],
+      "checks": "passed"
+    },
+    {
+      "turn": 4,
+      "scores": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "speakingOrder": [],
+      "departureOrder": [],
+      "departedRoles": [
+        "technical_expert",
+        "market_signals_researcher",
+        "interrogator",
+        "sympathizer"
+      ],
+      "farewells": [],
+      "audio": [],
+      "checks": "passed"
+    },
+    {
+      "turn": 5,
+      "scores": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "speakingOrder": [],
+      "departureOrder": [],
+      "departedRoles": [
+        "technical_expert",
+        "market_signals_researcher",
+        "interrogator",
+        "sympathizer"
+      ],
+      "farewells": [],
+      "audio": [],
+      "checks": "passed"
+    },
+    {
+      "turn": 6,
+      "scores": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "speakingOrder": [],
+      "departureOrder": [],
+      "departedRoles": [
+        "technical_expert",
+        "market_signals_researcher",
+        "interrogator",
+        "sympathizer"
+      ],
+      "farewells": [],
+      "audio": [],
+      "checks": "passed"
+    }
+  ]
+}

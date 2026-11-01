@@ -8,7 +8,7 @@ Current fix branch: `feat/live-reply-coach`
 
 ## Current rule
 
-At most **two distinct investors respond per completed founder message**, and only one voice plays at a time. After those replies, the founder gets the floor again. There is no automatic chain of investor replies. The founder can answer both investors in one message, in either order, without having to name them. Each investor evaluates only its own open question. Investors may stay silent, and may bid to follow up after the next founder message. Order remains dynamic rather than a fixed rotation.
+At most **two distinct investors give ordinary replies per completed founder message**, and only one voice plays at a time. Every investor newly reaching zero gets a mandatory farewell before these replies; farewells are exempt from the two-speaker cap. After those replies, the founder gets the floor again if anyone remains. There is no automatic chain of investor replies. The founder can answer both investors in one message, in either order, without having to name them. Each investor evaluates only its own open question. Investors may stay silent, and may bid to follow up after the next founder message. Order remains dynamic rather than a fixed rotation.
 
 This supersedes both the original one-reply limit and the later four-volunteer loop. Scores still start at 50, range from 0 to 100, and change by at most 20 per investor per founder message. Zero and 100 are terminal.
 
@@ -128,7 +128,7 @@ Each turn can include optional `expect` assertions. `speakers` checks the set, n
 }
 ```
 
-Custom files require live mode. Even without explicit expectations, the runner checks the two-person cap, unique speakers, four valid scores, bounded deltas and session turn continuity. Exact model wording and speaker order are not asserted.
+Custom files require live mode. Even without explicit expectations, the runner checks the two-person ordinary cap, complete farewell coverage and priority, unique speakers, four valid scores, bounded deltas and session turn continuity. Exact model wording and speaker order are not asserted.
 
 ## Provider isolation and reproduction
 
@@ -164,3 +164,16 @@ The backend promotes nonzero changes smaller than 10 to the same sign with magni
 Regression tests reproduce the bid-only pass, repair success, repeated invalid JSON, all-investor abstention, preservation of an unresolved concern and score across failure, later recovery, and no duplicate scoring. All four isolated ElevenLabs branch prompts were updated and read back successfully. Provider main branches and traffic settings were not changed.
 
 Validation: 74 automated tests, production build and offline coding-agent bridge pass. The live `neither` scenario passed five founder turns: scores 50/50/50/50, then 35/35/35/35, then 25/25/35/35, unchanged during a pause, then 40/40/50/50 after supporting evidence. All 20 live assessments were valid on the first attempt; forced malformed-output recovery is covered by the deterministic tests. Evidence: [assessment-recovery.json](test-results/assessment-recovery.json). No browser automation was used.
+
+
+## Mandatory farewells and changing call grid (November 1, 2026)
+
+Owner: Arjun Behl. Branch: `feat/live-reply-coach`.
+
+After assessments are applied, every investor crossing from a positive score to zero receives an immediate farewell grant, regardless of its bid. These grants run sequentially before normal questions. All three or four may leave together. Farewells do not consume the two ordinary reply slots; each investor still speaks at most once in a founder round. The model receives `departure: true` and its actual score explanation as `exit_reason`, and must briefly state why it is passing and leaving, with no question and `concern: null`. At 100, existing offer behavior remains unchanged; only zero triggers departure.
+
+The API keeps four score/response entries for stable role mapping. `departureOrder` contains this round's newly departing roles and is a prefix of `speakingOrder`. `departedRoles` contains every zero-score role in this session. `maxSpeakers: 2` now explicitly means ordinary replies. No departed investor is assessed or granted another turn. Its provider connection closes after farewell generation; the saved reply remains available to the authenticated audio route.
+
+The frontend keeps each departing tile visible until that investor's sequential audio completes, fails or is skipped. Then it appends a departure notice and hides just that tile. The grid adapts from four to three (one centered above two), two, one full-width investor, and finally an empty-call card. The transcript and final scores stay in the conversation log. When everyone leaves, text, microphone, suggestions and automatic coding-agent submissions stop; Reset or Try a new pitch restores all four at 50. Reset during playback invalidates the old queue so its completion cannot hide restored tiles. Fresh provider sessions likewise restore membership.
+
+Validation: 83 automated tests and the TypeScript/production build pass. Tests cover one, three and four simultaneous exits, pass bids still receiving a farewell, farewell priority, the ordinary cap, four authorized audio streams, no repeated departures, sequential tile removal, reset cancellation and late suggestion cancellation. The real ElevenLabs test moved all four 50 -> 30 -> 10 -> 0. All four spoke on turn three, all four MP3 streams were nonempty, and turns four through six were silent with no new assessments. All four isolated branch prompts were updated and verified. Evidence: [investor-farewells.json](test-results/investor-farewells.json). UI state was tested through the same controller used by the app; no browser/computer automation or visual screenshot verification was performed.

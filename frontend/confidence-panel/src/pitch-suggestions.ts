@@ -40,6 +40,10 @@ export function createPitchSuggestions(api: string, hooks: { busy: () => boolean
       status.textContent = 'Listening to the panel. Suggestions will use this conversation.';
     },
     failed() { status.textContent = 'Retry your pitch in the main chat to continue.'; },
+    end() {
+      cancel(); buttons = []; list.replaceChildren(); heading.textContent = 'Call complete';
+      status.textContent = 'All investors have left. Your transcript is still here. Reset to practise again.';
+    },
     async complete(revision?: number) {
       cancel();
       if (!Number.isSafeInteger(revision)) { status.textContent = 'Suggestions are unavailable for this session.'; return; }
