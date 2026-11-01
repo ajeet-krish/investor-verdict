@@ -7,6 +7,8 @@ Backend branch: `feat/agents/text-integration`
 
 ## Status: implemented
 
+The implementation is merged into main via PR #3 and issue #4 is closed. Read [the completion report](../docs/SETUP_HANDOFF.md) for the next work: selected-investor audio playback, microphone verification, and hosted deployment.
+
 Arjun authorized connecting the frontend directly with minimal changes. `frontend/confidence-panel/src/main.ts` now renders the selected investor's reply, identifies the responding tile, starts scores at 50, and connects Start/Reset/Leave to backend session reset. Four small CSS rules style the reply, responding tile, and disabled controls. The page layout and portraits are unchanged.
 
 The old hidden heuristic fallback and Freeze control are removed from the live flow. Requests are not queued; input, microphone, Reset and Leave are disabled while a request is pending, preventing old results from entering a new pitch. API errors preserve the founder's text for an explicit retry. The steps below document the implemented contract and acceptance checks, rather than outstanding work for another developer.
