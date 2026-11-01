@@ -31,12 +31,16 @@ What the snippet does:
 ## Server (optional)
 
 The deploy server has no Sentry dependency by default to keep installs instant.
+Server reporting is wired with an optional dynamic import at startup in
+`deploy/server.js`: when `SENTRY_DSN` is set, the server tries to import
+`@sentry/node` and enables it; when the package is missing it logs a skip note
+and keeps serving. It never crashes when Sentry is absent.
+
 To enable server reporting:
 
 1. In `deploy`, run `npm i @sentry/node`.
-2. Uncomment the two lines at the bottom of `deploy/sentry-snippet.mjs` and wire
-   them in `deploy/server.js` startup, using `process.env.SENTRY_DSN`.
-3. Set `SENTRY_DSN` in the Render dashboard. Empty value keeps it disabled.
+2. Set `SENTRY_DSN` in the Render dashboard. Empty value keeps it disabled.
+3. No code change is needed. Startup logs either enabled or skipped.
 
 ## Verify
 

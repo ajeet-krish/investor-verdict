@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "Render web service for investor-verdict: static hosting plus signed URL endpoint plus health check",
+    "description": "Render web service for investor-verdict: static hosting plus health check plus signed URL, panel, voice, and agent bridge API routes",
     "main": "server.js",
     "engines": {
         "node": "20.x"
