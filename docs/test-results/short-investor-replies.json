@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-01",
+  "pitch": "Fictional practice pitch: I am building an app that helps students practise a startup pitch with AI investors. I have a working demo and five classmates have tried it. I plan to offer it to university startup clubs for $20 a month. The AI sometimes misunderstands people, so they can correct their text before sending. CTO and market researcher, what would you like to know? The others can sit this round out.",
+  "result": {
+    "scores": [
+      55,
+      55,
+      50,
+      55
+    ],
+    "responses": [
+      {
+        "panelist": "The CTO",
+        "role": "technical_expert",
+        "confidence": 55,
+        "reason": "Working demo with five real testers and an honest note about AI misreads is a concrete, relevant start; specifics on what runs today are still thin.",
+        "reply": "Got it. What does the demo actually do today, and what's still mocked or manual?",
+        "spoke": true,
+        "wantsTurn": true,
+        "status": "concerned",
+        "answerStatus": "none",
+        "pendingConcern": {
+          "text": "What does the demo actually do today, and what's still mocked or manual?",
+          "askedRound": 1
+        }
+      },
+      {
+        "panelist": "The VP",
+        "role": "market_signals_researcher",
+        "confidence": 55,
+        "reason": "Working demo and five classmates trying it is concrete early first-hand validation, though demand and willingness to pay are still unproven.",
+        "reply": "",
+        "spoke": false,
+        "wantsTurn": true,
+        "status": "concerned",
+        "answerStatus": "none",
+        "pendingConcern": null
+      },
+      {
+        "panelist": "The Interrogator",
+        "role": "interrogator",
+        "confidence": 50,
+        "reason": "No pending concern; first substantive pitch turn. Demo and five classmate testers are early but concrete, so confidence stays at 50.",
+        "reply": "Thanks. Where does the $20 a month come from, and who actually pays it?",
+        "spoke": true,
+        "wantsTurn": true,
+        "status": "concerned",
+        "answerStatus": "none",
+        "pendingConcern": {
+          "text": "Where does the $20 a month come from, and who actually pays it?",
+          "askedRound": 1
+        }
+      },
+      {
+        "panelist": "The Sympathizer",
+        "role": "sympathizer",
+        "confidence": 55,
+        "reason": "Concrete early signal: working demo and five classmates tried it, plus a specific price point, though no evidence yet on whether it helped them or that clubs would pay.",
+        "reply": "",
+        "spoke": false,
+        "wantsTurn": true,
+        "status": "concerned",
+        "answerStatus": "none",
+        "pendingConcern": null
+      }
+    ],
+    "speakingOrder": [
+      "interrogator",
+      "technical_expert"
+    ],
+    "speaker": "interrogator",
+    "selectionReason": "Pricing and unit economics are my area and the $20/month claim is unsupported; I want to probe willingness to pay and what drives that number.",
+    "turn": 1,
+    "source": "elevenlabs",
+    "initialScore": 50,
+    "maxSpeakers": 2
+  },
+  "note": "Live CLI text verification only. Audio duration is a soft prompt target and was not measured."
+}

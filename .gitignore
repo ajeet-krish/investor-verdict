@@ -17,8 +17,8 @@ uv.lock
 
 # Env and secrets (ElevenLabs keys live here, never commit)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 *.pem
 *.key
 

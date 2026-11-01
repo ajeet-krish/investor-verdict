@@ -1,5 +1,7 @@
 # Coding agent collaboration pipeline
 
+Current delivery note (November 1, 2026): the user authorized merging the audio, two-investor, coding-agent and simplified-reply integration into `main`. Earlier test-branch-only or text-only status below describes its development history. See [the current frontend handoff](../agents/FRONTEND_HANDOFF.md) for the latest behavior. The separate Render deployment remains unverified for this integration.
+
 Owner: Arjun Behl
 Date: November 1, 2026
 Branch: `test/investor-integration`

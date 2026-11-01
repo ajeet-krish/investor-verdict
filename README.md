@@ -1,8 +1,21 @@
 # investor-verdict
 
-Coding-agent collaboration on the test branch: [setup and pipeline](docs/CODING_AGENT_PIPELINE.md), [instructions for your coding agent](agents/CODING_AGENT_HANDOFF.md). Approve once in the app, then the coding agent can draft founder replies while the real investor panel responds.
+Coding-agent collaboration: [setup and pipeline](docs/CODING_AGENT_PIPELINE.md), [instructions for your coding agent](agents/CODING_AGENT_HANDOFF.md). Approve once in the app, then the coding agent can draft founder replies while the real investor panel responds.
 
 Teams style call where you pitch to 4 live voice investors and survive to term sheet.
+
+## Current local app
+
+The integrated main app includes text and voice, up to two short investor replies per turn, live confidence scores and the coding-agent connection. See [the current handoff](agents/FRONTEND_HANDOFF.md) for verified behavior. Scores start at 50; speaker selection is dynamic, with no fixed rotation.
+
+```sh
+npm ci
+npm --prefix frontend/confidence-panel ci
+# For a new checkout only: copy .env.example to .env and fill credentials privately.
+npm run dev
+```
+
+Open http://127.0.0.1:5173. Keep API keys and the coding-agent connection file out of Git. The hosted demo and legacy setup below use a separate deployment path; this main merge does not verify or upgrade that deployment.
 
 ## How to watch demo
 

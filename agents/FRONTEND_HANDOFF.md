@@ -3,7 +3,7 @@
 From: Arjun Behl
 To: frontend developer and their coding agent
 Date: November 1, 2026
-Branch: `test/investor-integration`, local experiment, not merged into main
+Delivery: user-authorized merge from `test/investor-integration` to `main`, November 1, 2026. Root local app verified; separate Render deployment not integrated.
 
 ## Coding-agent collaboration
 
@@ -23,7 +23,7 @@ Validation: TypeScript/build, all 50 tests, `npm run test:panel` and `npm run te
 
 ## Current behavior
 
-The text baseline was merged through PR #3, closing issue #4. This test branch adds live microphone transcription, streamed investor voices, and multiple voluntary replies per founder message. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for setup and validation. Do not merge or deploy this experiment without a user request.
+The text baseline was merged through PR #3, closing issue #4. This test branch adds live microphone transcription, streamed investor voices, and multiple voluntary replies per founder message. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for setup and validation. The user authorized the main merge; production deployment remains separate work.
 
 Zero to two investors can answer the same founder message. Only one speaks at a time. Every active investor privately decides whether to contribute, and may sit out. After at most two replies the founder answers, possibly addressing both in one message. Each investor independently checks its pending question; partial or unanswered concerns lower its confidence. See [TWO_INVESTOR_ROUNDS.md](../docs/TWO_INVESTOR_ROUNDS.md). The server selects the next willing investor by relevance priority, with a previous-speaker penalty and random tie-breaking. There is no fixed rotation or requirement for all four to talk. Each contributes at most once per message. Confidence starts at 50 and can change even when an investor stays silent. All four agents use `deepseek-v41-flash` through ElevenLabs.
 
@@ -103,3 +103,15 @@ The server assesses scores once per founder message, regardless of how many inve
 Before the new two-speaker policy, a live browser pitch addressed the Technical Expert and Market Researcher and asked the others to sit out. Both requested contributors answered in sequence, the other two stayed silent, and scores were 55/55/50/50. The final audio finished at 15.86 seconds with no playback error, and input became available again. Screenshot: `agents/multi-investor-audio-preview.png`.
 
 The original single-speaker text baseline and historical checks are documented in [SETUP_HANDOFF.md](../docs/SETUP_HANDOFF.md). The test branch supersedes its at-most-one-reply-per-message policy.
+
+## Live app CLI verification, November 1
+
+The user approved the coding-agent connection in their open app. The CLI submitted two explicitly fictional founder messages into that same session and read real ElevenLabs results without computer use. Round 1 selected CTO then VP, with scores 55/55/50/50. Round 2 answered the CTO's question but explicitly left the VP's demand question unanswered: scores became 65/45/50/55, CTO assessment resolved, VP assessment unanswered. The VP spoke before the CTO in round 2; Interrogator and Sympathizer stayed silent in both rounds. The silent Sympathizer independently raised confidence by 5 for candor in round 2.
+
+The second suggestion was queued while the app reported playback not ready and subsequently completed as turn 2, preserving the conversation. These CLI results verify the live submission/result pipeline and per-investor scoring; they do not independently prove device audio output or microphone capture. Evidence: [live-app-cli.json](../docs/test-results/live-app-cli.json). Connection credentials remain in the ignored private local config and are excluded from this evidence.
+
+## Short, simple investor replies
+
+All four isolated ElevenLabs test branches now use the simple conversation style in `agents/prompts/two-investor-rounds.md`. Prefer everyday words, one small question and an optional tiny reaction, usually 10-20 words and under roughly 10 seconds per investor. This is a soft delivery target, not a word/token rejection rule or an audio cutoff. Investors can acknowledge or pass instead of continually adding questions. Confidence assessment, the two-speaker cap and sequential audio are unchanged. These are provider prompt changes; existing provider conversations take them on their next fresh session. No frontend changes or server restart are required.
+
+Live CLI verification started a fresh provider session and produced two brief replies: CTO 15 words and Interrogator 14 words. No computer use was needed. Audio duration was not measured; the under-10-second goal remains approximate. Evidence: [short-investor-replies.json](../docs/test-results/short-investor-replies.json).

@@ -1,5 +1,7 @@
 # Text and voice panel integration
 
+Current delivery note (November 1, 2026): the user authorized merging this integration into `main`. Earlier test-branch-only references below describe development history. See [the current frontend handoff](FRONTEND_HANDOFF.md). The separate Render deployment remains unverified.
+
 Contributor: Arjun Behl
 Date: November 1, 2026
 Worktree: `LarpHacks/investor-verdict-text`

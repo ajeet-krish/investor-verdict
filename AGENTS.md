@@ -3,16 +3,17 @@
 ## Coding agents in the live app
 Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.
 
-## Audio test branch
-On `test/investor-integration`, read [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md) first. This local experiment adds real-time microphone transcription and sequential streamed speech for at most two willing investors per founder message. The main-branch completion report below describes the earlier text-only baseline. Do not merge or deploy this audio experiment without a user request.
+## Current integration
+The user authorized merging `test/investor-integration` into `main` on November 1, 2026. The current implementation includes the Working_MVP layout, visible confidence scores, real-time founder transcription, sequential investor speech and the coding-agent bridge. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) and [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md). The separate Render deployment has not been integrated or verified for these endpoints.
+
+Investor replies use plain language, usually 10-20 words and one simple question, aiming for under roughly 10 seconds per investor without a hard audio cutoff. These prompts are saved on the isolated ElevenLabs branches in `agents/panel-test-branches.json`; provider main prompts and default traffic remain unchanged.
 
 ## Two-investor rounds and testing
 Read [docs/TWO_INVESTOR_ROUNDS.md](docs/TWO_INVESTOR_ROUNDS.md). The latest rule is at most two replies, then the founder answers; each investor evaluates its own pending concern. Incomplete answers deduct at least 5 and unanswered concerns at least 10, once per substantive message. Pauses do not lower confidence. Never reinstate the four-speaker loop.
 Use `npm test` and `npm run test:panel` for free deterministic checks. `npm run test:panel:live` explicitly uses credits and isolated ElevenLabs test branches configured in `agents/panel-test-branches.json`. The runner exercises actual HTTP sessions without computer use. Do not change agent main prompts or default traffic when testing.
 
-## Main-branch text baseline
-Read [docs/SETUP_HANDOFF.md](docs/SETUP_HANDOFF.md) for the completion report and remaining investor-audio and deployment work. Text integration is already on main; microphone transcription is wired but not manually verified, and spoken investor replies are not connected yet.
-This test branch supersedes the main baseline with audio and multiple voluntary replies. The frontend is connected to the real text backend. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) for the implemented contract and validation. Investors bid for turns dynamically, zero to two may reply per founder message, with only one speaking at a time, and all may stay silent. Scores start at 50 and can rise or fall. Earlier fixed-order and start-at-100 instructions are superseded. Backend details are in [agents/TEXT_INTEGRATION.md](agents/TEXT_INTEGRATION.md).
+## Historical baseline
+[docs/SETUP_HANDOFF.md](docs/SETUP_HANDOFF.md) describes the earlier text-only release. Its single-speaker and missing-audio statements are historical. Current behavior: zero to two investors may reply per founder message, one voice at a time, with dynamic selection and optional silence. Scores start at 50 and can rise or fall. Earlier fixed-order and start-at-100 instructions are superseded.
 
 ## Quick Commands
 * Clone: `git clone <repo url>`
