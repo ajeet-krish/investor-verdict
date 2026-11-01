@@ -137,3 +137,11 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 /* Playback belongs to the investor currently speaking. */
 .t #reply-audio{position:absolute;top:44px;right:40px;width:min(190px,calc(100% - 56px));height:32px;margin:0;z-index:3}
 .t #skip-audio{position:absolute;top:82px;right:40px;margin:0;padding:4px 8px;font-size:11px;z-index:3}
+
+/* A compact status icon replaces visible playback controls. */
+.t.responding::after{content:none}
+#reply-audio,#skip-audio{display:none!important}
+.speaker-icon{position:absolute;top:11px;right:40px;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:#13151cb3;color:#9693a3;z-index:2}
+.speaker-icon svg{width:17px;height:17px}
+.t.responding .speaker-icon{color:#d0beff;background:#413257;box-shadow:0 0 12px #bba4ff55}
+.t.leaving.responding .speaker-icon{color:#ff9995}

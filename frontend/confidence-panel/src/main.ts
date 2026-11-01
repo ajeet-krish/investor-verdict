@@ -143,6 +143,7 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
       <span class="score-line"><strong class="v">50</strong><span class="score-total">/100</span><span class="score-change" hidden></span></span>
       <span class="score-verdict" hidden></span>
     </div>
+    <span class="speaker-icon" role="img" aria-label="Not speaking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg></span>
     <div class="ctl">
       <label>Add photo<input type="file" accept="image/*" /></label>
       <button class="rm" type="button">Reset photo</button>
@@ -243,14 +244,7 @@ function main(): void {
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
-    const speaker = panel.find(p => p.role === role);
-    if (speaker) {
-      speaker.el.append(replyAudio, skipAudio);
-      replyAudio.setAttribute('aria-label', `${speaker.name} voice reply`);
-    } else {
-      replyAudio.hidden = true;
-      skipAudio.hidden = true;
-    }
+    panel.forEach(p => must<HTMLElement>(p.el, '.speaker-icon').setAttribute('aria-label', p.role === role ? `${p.name} is speaking` : `${p.name} is not speaking`));
   };
 
   /* end-of-call result card; the roster shows it once every tile has left */
@@ -480,8 +474,9 @@ function main(): void {
   chatBtn.addEventListener("click", () => {
     const open = chatBtn.getAttribute("aria-pressed") !== "true";
     chatBtn.setAttribute("aria-pressed", String(open));
-    chatBtn.setAttribute("aria-label", open ? "Hide chat" : "Show chat");
-    chatbox.hidden = !open;
+    chatBtn.setAttribute("aria-label", open ? "Hide transcript" : "Show transcript");
+    log.hidden = !open;
+    must<HTMLElement>(chatbox, ".transcript-heading").hidden = !open;
     if (open) promptInput.focus();
   });
 
@@ -573,8 +568,6 @@ function main(): void {
       voice.stop();
       promptInput.value = text;
       chatbox.hidden = false;
-      chatBtn.setAttribute('aria-pressed', 'true');
-      chatBtn.setAttribute('aria-label', 'Hide chat');
       promptInput.focus();
       showNotice('Added to chat. Edit it or press Send.');
     },
