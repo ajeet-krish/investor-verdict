@@ -16,6 +16,16 @@ export class PanelError extends Error {
   constructor(message, status = 502) { super(message); this.status = status; }
 }
 
+// Repeat the full contract each turn so a silent investor does not fall back to
+// the legacy bid-only format after a long conversation.
+const ASSESSMENT_FORMAT = {
+  wants_turn: 'boolean', priority: 'integer 1-100 when willing, otherwise 0',
+  reason: 'nonempty string, at most 500 characters', substantive: 'boolean',
+  answer_status: 'none without a pending concern; resolved/partial/unanswered with one; deferred only for controls',
+  score_delta: 'integer -20..20; meaningful changes at least 10; partial at most -10; unanswered at most -15; neutral/control 0',
+  score_reason: 'nonempty string, at most 500 characters',
+};
+
 export function validatePitch(body) {
   if (!body || typeof body.pitch !== 'string' || !body.pitch.trim() || body.pitch.length > 4000) {
     throw new PanelError('Pitch must contain 1 to 4000 characters.', 400);
@@ -147,17 +157,32 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
         // All active investors listen and bid privately; none has the floor yet.
         const bids = await Promise.all(active.map(async role => {
           const state = before.find(s => s.key === role.key);
-          const answer = await ask(session, role, {
+          const pendingConcern = session.investors.get(role.key).pendingConcern;
+          const packet = {
             protocol: 'investor_panel_v2', phase: 'assess', round: session.turn + 1,
             founder_message: input.pitch, previous_exchange: session.lastExchange,
-            pending_concern: session.investors.get(role.key).pendingConcern, max_speakers: MAX_SPEAKERS,
+            pending_concern: pendingConcern, max_speakers: MAX_SPEAKERS,
             confidence: state.confidence, next_score_turn: state.turn_number + 1,
-          });
-          try { return { key: role.key, ...parseAssessment(answer, session.investors.get(role.key).pendingConcern) }; }
-          catch { throw new PanelError('An investor returned an invalid turn bid or concern assessment. No speaker was selected.'); }
+            required_response_fields: ASSESSMENT_FORMAT,
+          };
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const answer = await ask(session, role, attempt === 0 ? packet : {
+              ...packet,
+              correction: 'Your previous assessment was invalid or incomplete. Correct that SAME assessment, not a new founder turn. Return one complete JSON object with ALL seven required fields, even when passing. No prose or ellipses. No score has been applied yet.',
+            });
+            try {
+              return { key: role.key, ...parseAssessment(answer, pendingConcern),
+                assessmentStatus: attempt === 0 ? 'valid' : 'repaired' };
+            } catch { /* Only invalid completed assessments receive one correction. */ }
+          }
+          // An unusable assessment must not cancel other investors, invent a
+          // judgment, clear a concern or penalize the founder for a provider fault.
+          return { key: role.key, wantsTurn: false, priority: 0, answerStatus: null,
+            assessmentStatus: 'unavailable', reason: 'Assessment unavailable; investor sat out with confidence unchanged.' };
         }));
         // Validate all assessments before applying any score or clearing a concern.
         for (const bid of bids) {
+          if (bid.assessmentStatus === 'unavailable') continue;
           const state = before.find(s => s.key === bid.key);
           const result = JSON.parse(session.controller.clientToolsFor(bid.key).report_investor_interest({
             turn_number: state.turn_number + 1,
@@ -208,9 +233,11 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
           const bid = bids.find(b => b.key === role.key);
           const speech = speeches.find(s => s.role === role.key);
           const spoke = Boolean(speech);
-          return { panelist: title, role: role.key, confidence: state.confidence, reason: state.reason,
+          return { panelist: title, role: role.key, confidence: state.confidence,
+            reason: bid?.assessmentStatus === 'unavailable' ? bid.reason : state.reason,
             reply: speech?.reply ?? '', spoke, wantsTurn: bid?.wantsTurn ?? false,
             status: state.status, answerStatus: bid?.answerStatus ?? null,
+            assessmentStatus: bid?.assessmentStatus ?? null,
             pendingConcern: session.investors.get(role.key).pendingConcern };
         });
         session.turn++;

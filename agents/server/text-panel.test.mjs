@@ -28,7 +28,7 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
           const duplicate = config.clientTools.report_investor_interest({ ...report, turn_number: scoreTurn + 1 });
           assert.equal(JSON.parse(duplicate).accepted, false);
           queueMicrotask(() => {
-            const result = bid(role.key, packet.round);
+            const result = bid(role.key, packet.round, packet);
             const assessment = { ...result, substantive: true, answer_status: packet.pending_concern ? 'resolved' : 'none', score_delta: scoreChange, score_reason: 'Concrete customer evidence.' };
             config.onMessage({ source: 'ai', message: typeof result === 'string' ? result : JSON.stringify(assessment) });
             config.onIncomingEvent({ type: 'agent_response_complete' });
@@ -55,7 +55,7 @@ test('existing payload keeps four scores, with one dynamically chosen speaker an
   const service = makeService(sdk);
   try {
     const first = await service.evaluate(pitch);
-    assert.deepEqual(first.result.scores, [55, 55, 55, 55]);
+    assert.deepEqual(first.result.scores, [60, 60, 60, 60]);
     assert.equal(first.result.speaker, 'interrogator');
     assert.equal(service.getSpeech(first.sessionId, 1, 'interrogator').role, 'interrogator');
     assert.throws(() => service.getSpeech('another-session', 1, 'interrogator'), /expired/);
@@ -65,7 +65,7 @@ test('existing payload keeps four scores, with one dynamically chosen speaker an
     const second = await service.evaluate({ ...pitch, scores: [1, 2, 3, 4] }, first.sessionId);
     assert.equal(second.result.speaker, 'sympathizer');
     assert.throws(() => service.getSpeech(first.sessionId, 1, 'interrogator'), /no longer current/);
-    assert.deepEqual(second.result.scores, [60, 60, 60, 60]);
+    assert.deepEqual(second.result.scores, [70, 70, 70, 70]);
     const assessments = sdk.sent.filter(s => s.packet.round === 2 && s.packet.phase === 'assess');
     assert.equal(assessments.length, 4);
     assert.ok(assessments.every(s => s.packet.previous_exchange.speaker === 'interrogator'));
@@ -74,7 +74,7 @@ test('existing payload keeps four scores, with one dynamically chosen speaker an
     await service.reset(first.sessionId);
     assert.equal(sdk.ended.length, 4);
     const fresh = await service.evaluate(pitch);
-    assert.deepEqual(fresh.result.scores, [55, 55, 55, 55]);
+    assert.deepEqual(fresh.result.scores, [60, 60, 60, 60]);
   } finally { await service.close(); }
 });
 
@@ -89,7 +89,7 @@ test('everyone can pass without a speech request or a fabricated reply', async (
     assert.equal(result.selectionReason, null);
     assert.ok(result.responses.every(r => !r.spoke && !r.wantsTurn && r.reply === ''));
     assert.equal(sdk.sent.filter(s => s.packet.phase === 'speak').length, 0);
-    assert.deepEqual(result.scores, [55, 55, 55, 55], 'silent investors can still assess evidence');
+    assert.deepEqual(result.scores, [60, 60, 60, 60], 'silent investors can still assess evidence');
   } finally { await service.close(); }
 });
 
@@ -126,13 +126,58 @@ test('a failed speaker ends the session without handing the floor to someone els
   } finally { await service.close(); }
 });
 
-test('malformed bids stop evaluation before granting any speaker the floor', async () => {
+test('invalid assessments get one correction, then abstain without closing the room', async () => {
   const sdk = fakeSdk({ bid: () => 'I should speak now!' });
   const service = makeService(sdk);
   try {
-    await assert.rejects(service.evaluate(pitch), /invalid turn bid/);
+    const { result, sessionId } = await service.evaluate(pitch);
+    assert.deepEqual(result.scores, [50, 50, 50, 50]);
+    assert.ok(result.responses.every(r => r.assessmentStatus === 'unavailable' && r.answerStatus === null));
+    assert.ok(result.responses.every(r => /unchanged/.test(r.reason)));
+    assert.equal(sdk.sent.filter(s => s.packet.phase === 'assess').length, 8);
     assert.equal(sdk.sent.filter(s => s.packet.phase === 'speak').length, 0);
-    assert.equal(sdk.ended.length, 4);
+    assert.equal(sdk.ended.length, 0);
+    const next = await service.evaluate(pitch, sessionId);
+    assert.equal(next.result.turn, 2);
+    assert.equal(sdk.configs.length, 4);
+  } finally { await service.close(); }
+});
+
+test('the observed bid-only pass is repaired without interrupting other investors or double scoring', async () => {
+  const sdk = fakeSdk({ bid: (role, round, packet) => role === 'market_signals_researcher'
+    ? packet.correction ? pass : JSON.stringify(pass) : willing() });
+  const service = makeService(sdk);
+  try {
+    const { result } = await service.evaluate(pitch);
+    assert.equal(result.responses[1].assessmentStatus, 'repaired');
+    assert.deepEqual(result.scores, [60, 60, 60, 60]);
+    assert.equal(result.speakingOrder.length, 2);
+    assert.ok(!result.speakingOrder.includes('market_signals_researcher'));
+    const requests = sdk.sent.filter(s => s.packet.phase === 'assess');
+    assert.equal(requests.length, 5);
+    const repair = requests.find(s => s.packet.correction).packet;
+    assert.equal(repair.round, 1);
+    assert.equal(repair.next_score_turn, 1);
+    assert.equal(Object.keys(repair.required_response_fields).length, 7);
+    assert.equal(sdk.ended.length, 0);
+  } finally { await service.close(); }
+});
+
+test('a failed assessment preserves its existing concern and score while other investors continue', async () => {
+  const sdk = fakeSdk({ bid: (role, round) => role === 'technical_expert' && round === 2 ? '{"wants_turn":true,' : willing() });
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    const second = await service.evaluate(pitch, first.sessionId);
+    assert.equal(second.result.responses[0].assessmentStatus, 'unavailable');
+    assert.deepEqual(second.result.responses[0].pendingConcern, first.result.responses[0].pendingConcern);
+    assert.deepEqual(second.result.scores, [60, 70, 70, 70]);
+    assert.equal(second.result.speakingOrder.length, 2);
+    assert.ok(!second.result.speakingOrder.includes('technical_expert'));
+    const third = await service.evaluate(pitch, first.sessionId);
+    assert.equal(third.result.responses[0].assessmentStatus, 'valid');
+    assert.equal(third.result.scores[0], 70);
+    assert.equal(sdk.configs.length, 4);
   } finally { await service.close(); }
 });
 
@@ -209,7 +254,7 @@ test('multiple willing investors speak sequentially in bid order while others si
     const { result, sessionId } = await evaluation;
     assert.deepEqual(result.speakingOrder, ['sympathizer', 'technical_expert']);
     assert.equal(result.responses.filter(r => r.spoke).length, 2);
-    assert.deepEqual(result.scores, [55, 55, 55, 55], 'score only once despite multiple speeches');
+    assert.deepEqual(result.scores, [60, 60, 60, 60], 'score only once despite multiple speeches');
     for (const role of result.speakingOrder) assert.equal(service.getSpeech(sessionId, 1, role).role, role);
     assert.throws(() => service.getSpeech(sessionId, 1, 'interrogator'), /No investor spoke/);
     assert.throws(() => service.getSpeech(sessionId, 1, 'unknown'), /No investor spoke/);

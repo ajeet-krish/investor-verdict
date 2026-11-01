@@ -117,7 +117,7 @@ test('HTTP pipeline shares the browser session, returns actual investor results 
   const second = await evaluate(request.pitch, { bridgeJobId: request.requestId, bridgeAuto: true });
   assert.equal(second.status, 200);
   assert.equal(second.data.turn, 2, 'Same four investor conversations, not a fresh session');
-  assert.deepEqual(second.data.scores, [60,60,50,50]);
+  assert.deepEqual(second.data.scores, [70,70,50,50]);
   const job = (await agent('job?id=' + request.requestId)).data;
   assert.equal(job.status, 'completed');
   assert.deepEqual(job.result.scores, second.data.scores);

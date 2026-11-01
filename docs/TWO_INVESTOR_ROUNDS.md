@@ -4,7 +4,7 @@ Current delivery note (November 1, 2026): the user authorized merging the audio,
 
 Owner: Arjun Behl
 Date: November 1, 2026
-Git branch: `test/investor-integration`
+Current fix branch: `feat/live-reply-coach`
 
 ## Current rule
 
@@ -20,15 +20,15 @@ Each investor has at most one authoritative pending concern, stored as `{text, a
 | --- | --- | --- | --- |
 | `none` | No pending question from this investor | Normal evidence rubric | No old concern to resolve |
 | `resolved` | The answer sufficiently clears this investor's actual doubt | Model proposes evidence-based change, bounded to 20 | Clear the old concern |
-| `partial` | Answer attempted but a material part remains unclear, unsupported or unsafe | At least -5, up to -20 | Keep the concern |
-| `unanswered` | A completed substantive answer ignores, evades or contradicts this concern | At least -10, up to -20 | Keep the concern |
+| `partial` | Answer attempted but a material part remains unclear, unsupported or unsafe | At least -10, up to -20 | Keep the concern |
+| `unanswered` | A completed substantive answer ignores, evades or contradicts this concern | At least -15, up to -20 | Keep the concern |
 | `deferred` | Thinking time, quiet request, greeting or microphone problem | 0 | Keep the concern |
 
 The LLM classifies the answer; the server enforces the minimum deduction for partial/unanswered results, even if the model proposes a gain. It applies one net change, not an extra deduction on top of a model change. A new substantive evasion can lose points again, but waiting, playback and a second speech cannot deduct again. Resolved evidence is not automatically rewarded twice. Merely admitting a broken process does not clear the reliability concern or earn an honesty bonus.
 
 An answer to the Technical Expert does not resolve the Market Researcher's doubt. The reverse also holds. Confidence may change even when that investor does not receive a speaking slot. If the investor follows up while its original concern is unresolved, the server preserves that original concern instead of replacing it with an unrelated one. Once resolved, a genuinely new spoken question may create a new concern for the next founder message.
 
-For control messages the model occasionally uses `deferred` despite having no pending question. The server normalizes that harmless combination to `none`, only when `substantive` is false and the proposed change is zero. It does not fabricate a question or discard an existing one. Other invalid classifications fail the round rather than silently guessing scores.
+For control messages the model occasionally uses `deferred` despite having no pending question. The server normalizes that harmless combination to `none`, only when `substantive` is false and the proposed change is zero. It does not fabricate a question or discard an existing one. Other invalid classifications are not guessed. The server requests one corrected assessment for the same founder turn, then marks that investor unavailable and lets the others continue if it remains invalid.
 
 The meaning of an answer is still a model judgment. Passing these scenarios is regression evidence, not a guarantee that every possible pitch is classified correctly. The reported `answerStatus`, score `reason` and `pendingConcern` make such errors inspectable.
 
@@ -85,7 +85,7 @@ npm run test:panel:live -- --scenario all --out /tmp/investor-panel-live.json
 npm run test:panel:live -- --scenario neither --audio --out /tmp/investor-panel-live-audio.json
 ```
 
-Live mode uses ElevenLabs credits. It performs no automatic retries and stops a scenario when its expectations fail. The JSON report records messages, replies, scores, concern assessments and checks, plus byte counts when audio is enabled. Reports have restrictive file permissions; choose a private location for non-synthetic inputs. Do not commit real founder conversations or credentials.
+Live mode uses ElevenLabs credits. It stops a scenario when its expectations fail. The panel may make one correction request per investor for an invalid completed assessment, consuming an additional model response. It never retries the entire founder turn, a timeout, a connection failure or speech generation. The JSON report records messages, replies, scores, concern assessments and checks, plus byte counts when audio is enabled. Reports have restrictive file permissions; choose a private location for non-synthetic inputs. Do not commit real founder conversations or credentials.
 
 The audio check verifies authorization, content type and nonempty streamed bytes. Browser/device playback, autoplay permissions and actual microphone capture still require an occasional manual check. Routine turn-taking and scoring changes do not require computer use.
 
@@ -136,9 +136,9 @@ All four agents still use `deepseek-v41-flash` and their existing voices. Each n
 
 The branch mapping is committed as non-secret configuration. For another account, create one test branch per agent, append `two-investor-rounds.md` to that agent's existing role prompt, and supply a matching mapping file through `ELEVENLABS_PANEL_BRANCHES_FILE`. Its format is an array of `{agentId, branchId}`. Missing mappings fail instead of connecting to an agent's main version. Keep the existing final-response-completion event enabled. These branches were created and updated through the ElevenLabs connector; no main prompt or traffic deployment was changed.
 
-Git changes remain on `test/investor-integration`. No merge, main push or production deployment is part of this work.
+The assessment recovery and larger-score fix is on `feat/live-reply-coach`. No merge, main push or production deployment is part of this fix.
 
-## Validation record
+## Earlier validation record (before the larger-score update)
 
 - 42 automated tests pass, including the three offline HTTP batches, partial/all silence, two-speaker cutoff, separate concern scoring, unchanged pauses, preserved follow-up concerns, terminal behavior and concurrent-request rejection.
 - TypeScript and the production build pass. The existing non-fatal 606 KB ElevenLabs browser bundle warning remains.
@@ -151,3 +151,16 @@ Machine-readable evidence, containing only synthetic founder inputs and model re
 The tests caught and fixed two regressions before the final runs: the Technical Expert initially treated a candid admission of broken validation as resolved and awarded points; the instruction now distinguishes an answered question from a cleared concern. Separately, a quiet request caused agents without an open concern to emit `deferred` instead of `none`; the validator now normalizes that zero-change control-message case. These were deliberate fixes followed by regression runs, not automatic paid retries.
 
 Earlier browser screenshots in this repository describe previous audio implementations. No computer use was needed for these new turn-taking, confidence, concurrency or audio-route checks. Actual device microphone and browser playback were verified previously and are not re-certified by the HTTP harness.
+
+
+## Assessment recovery and larger score changes (November 1, 2026)
+
+Owner: Arjun Behl. In the reported nine-turn call, the Market Researcher returned only `wants_turn`, `priority` and `reason`, omitting all four assessment fields. Previously this aborted the whole panel and disconnected the other three investors while they were responding.
+
+Every assessment packet now repeats the seven-field contract. On invalid completed output, only that investor gets one correction request with the same founder message, round, concern, confidence and score-turn number. Validation remains strict: missing judgments are not inferred or filled in. Scores are applied only after assessment collection finishes. A second invalid response produces `assessmentStatus: "unavailable"`, no speech grant, no score change and no concern clearance. The next founder message can assess that investor again in the same session. Valid assessments use `valid` or `repaired`; terminal investors have null. Unavailable responses explain the unchanged score in their private `reason`. Transport errors and timeouts retain their explicit error behavior.
+
+The backend promotes nonzero changes smaller than 10 to the same sign with magnitude 10. Prompt guidance uses +10 for concrete relevant answers, +15 for strong evidence and +20 for compelling validation, with corresponding negative levels. Partial answers deduct at least 10 and unanswered concerns at least 15, capped at 20 per founder message. Neutral/repeated evidence and controls stay at zero. Scores still clamp to 0 and 100, so the final change near an endpoint can be smaller than 10.
+
+Regression tests reproduce the bid-only pass, repair success, repeated invalid JSON, all-investor abstention, preservation of an unresolved concern and score across failure, later recovery, and no duplicate scoring. All four isolated ElevenLabs branch prompts were updated and read back successfully. Provider main branches and traffic settings were not changed.
+
+Validation: 74 automated tests, production build and offline coding-agent bridge pass. The live `neither` scenario passed five founder turns: scores 50/50/50/50, then 35/35/35/35, then 25/25/35/35, unchanged during a pause, then 40/40/50/50 after supporting evidence. All 20 live assessments were valid on the first attempt; forced malformed-output recovery is covered by the deterministic tests. Evidence: [assessment-recovery.json](test-results/assessment-recovery.json). No browser automation was used.

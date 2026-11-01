@@ -22,8 +22,9 @@ export function parseAssessment(text, pendingConcern) {
     throw new Error('Invalid concern assessment.');
   }
   // The model judges relevance; the server enforces the requested minimum deduction.
-  const delta = data.answer_status === 'partial' ? Math.min(-5, data.score_delta)
-    : data.answer_status === 'unanswered' ? Math.min(-10, data.score_delta) : data.score_delta;
+  const proposed = data.score_delta === 0 ? 0 : Math.sign(data.score_delta) * Math.max(10, Math.abs(data.score_delta));
+  const delta = data.answer_status === 'partial' ? Math.min(-10, proposed)
+    : data.answer_status === 'unanswered' ? Math.min(-15, proposed) : proposed;
   return { ...bid, substantive: data.substantive, answerStatus: data.answer_status,
     delta, scoreReason: data.score_reason.trim() };
 }

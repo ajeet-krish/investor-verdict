@@ -15,7 +15,7 @@ try {
   if (!Array.isArray(selected) || !selected.length || selected.some(s => typeof s.name !== 'string' || !Array.isArray(s.turns) || !s.turns.length || s.turns.some(t => typeof t.pitch !== 'string' || !t.pitch.trim() || t.pitch.length > 4000))) {
     throw new Error('Use a known scenario or a JSON array of {name, turns: [{pitch, expect?}]}.');
   }
-  console.log(values.live ? 'LIVE: consumes ElevenLabs credits. No automatic retries.' : 'OFFLINE: deterministic provider fixtures, no credits or microphone.');
+  console.log(values.live ? 'LIVE: consumes ElevenLabs credits. At most one correction per invalid assessment; no whole-turn retries.' : 'OFFLINE: deterministic provider fixtures, no credits or microphone.');
   const provider = values.live ? createPanelProvider() : undefined;
   const report = { mode: values.live ? 'live' : 'offline', at: new Date().toISOString(), scenarios: [] };
   for (const scenario of selected) {
@@ -26,7 +26,7 @@ try {
     if (!result.passed) { process.exitCode = 1; break; }
   }
   if (values.out) await writeFile(values.out, JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
-  console.log(process.exitCode ? 'FAILED. Inspect the report; no automatic retry was made.' : 'All scenarios passed. Sessions closed.');
+  console.log(process.exitCode ? 'FAILED. Inspect the report; the scenario was not retried.' : 'All scenarios passed. Sessions closed.');
 } catch (error) {
   // Provider internals may contain signed URLs or credentials. Only expose our own concise errors.
   console.error('Panel run failed:', error.statusCode ? `Provider HTTP ${error.statusCode}` : String(error.message).slice(0, 500));

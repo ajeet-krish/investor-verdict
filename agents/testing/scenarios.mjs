@@ -6,8 +6,8 @@ const initial = {
 const technicalAnswer = 'For the Technical Expert: import validation requires the exact column schema, ISO dates and numeric totals; malformed rows are rejected into a review queue, never silently imported. We replayed 200 malformed files and rejected all 200, with zero corrupt reports. A staff member reviews every failed import and the owner confirms the preview before release.';
 const marketAnswer = 'For the Market Researcher: 12 independent repair shops paid $49 from their own budgets last month. Event logs show 10 of those 12 opened and used the report every week for four consecutive weeks, and eight documented a stock order changed using it. The denominator is all 12 paying shops, excluding staff and free trials.';
 const resolved = { answerStatus: 'resolved', minDelta: 0, maxDelta: 20 };
-const unanswered = { answerStatus: 'unanswered', minDelta: -20, maxDelta: -10, concern: true };
-const partial = { answerStatus: 'partial', minDelta: -20, maxDelta: -5, concern: true };
+const unanswered = { answerStatus: 'unanswered', minDelta: -20, maxDelta: -15, concern: true };
+const partial = { answerStatus: 'partial', minDelta: -20, maxDelta: -10, concern: true };
 const defer = { answerStatus: 'deferred', minDelta: 0, maxDelta: 0, concern: true };
 export const scenarios = [
   { name: 'both', turns: [initial, { pitch: technicalAnswer + ' ' + marketAnswer + ' Those are my answers to both questions. Please acknowledge briefly without asking a new question.',

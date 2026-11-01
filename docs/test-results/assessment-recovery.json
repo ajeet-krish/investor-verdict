@@ -1,0 +1,139 @@
+{
+  "mode": "live",
+  "at": "2026-11-01T20:36:48.859Z",
+  "scenarios": [
+    {
+      "name": "neither",
+      "passed": true,
+      "turns": [
+        {
+          "turn": 1,
+          "scores": [
+            50,
+            50,
+            50,
+            50
+          ],
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "assessmentStatus": [
+            "valid",
+            "valid",
+            "valid",
+            "valid"
+          ],
+          "answerStatus": [
+            "none",
+            "none",
+            "none",
+            "none"
+          ],
+          "checks": "passed"
+        },
+        {
+          "turn": 2,
+          "scores": [
+            35,
+            35,
+            35,
+            35
+          ],
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "assessmentStatus": [
+            "valid",
+            "valid",
+            "valid",
+            "valid"
+          ],
+          "answerStatus": [
+            "unanswered",
+            "unanswered",
+            "none",
+            "none"
+          ],
+          "checks": "passed"
+        },
+        {
+          "turn": 3,
+          "scores": [
+            25,
+            25,
+            35,
+            35
+          ],
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "assessmentStatus": [
+            "valid",
+            "valid",
+            "valid",
+            "valid"
+          ],
+          "answerStatus": [
+            "partial",
+            "partial",
+            "none",
+            "none"
+          ],
+          "checks": "passed"
+        },
+        {
+          "turn": 4,
+          "scores": [
+            25,
+            25,
+            35,
+            35
+          ],
+          "speakingOrder": [],
+          "assessmentStatus": [
+            "valid",
+            "valid",
+            "valid",
+            "valid"
+          ],
+          "answerStatus": [
+            "deferred",
+            "deferred",
+            "none",
+            "none"
+          ],
+          "checks": "passed"
+        },
+        {
+          "turn": 5,
+          "scores": [
+            40,
+            40,
+            50,
+            50
+          ],
+          "speakingOrder": [
+            "interrogator",
+            "technical_expert"
+          ],
+          "assessmentStatus": [
+            "valid",
+            "valid",
+            "valid",
+            "valid"
+          ],
+          "answerStatus": [
+            "resolved",
+            "resolved",
+            "none",
+            "none"
+          ],
+          "checks": "passed"
+        }
+      ]
+    }
+  ]
+}

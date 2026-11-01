@@ -13,8 +13,8 @@ const assessment = { wants_turn: true, priority: 80, reason: 'Follow-up needed.'
 const concern = { text: 'How many customers paid?', askedRound: 1 };
 
 test('unresolved concerns force independent deductions even when the model proposes a gain', () => {
-  assert.equal(parseAssessment(JSON.stringify(assessment), concern).delta, -10);
-  assert.equal(parseAssessment(JSON.stringify({ ...assessment, answer_status: 'partial' }), concern).delta, -5);
+  assert.equal(parseAssessment(JSON.stringify(assessment), concern).delta, -15);
+  assert.equal(parseAssessment(JSON.stringify({ ...assessment, answer_status: 'partial' }), concern).delta, -10);
   assert.equal(parseAssessment(JSON.stringify({ ...assessment, score_delta: -20 }), concern).delta, -20);
 });
 
@@ -80,7 +80,15 @@ test('simultaneous founder submissions are rejected with 409, without duplicate 
   assert.equal(response.status, 200);
   const result = await response.json();
   assert.equal(result.turn, 2);
-  assert.deepEqual(result.scores, [60, 60, 50, 50]);
+  assert.deepEqual(result.scores, [70, 70, 50, 50]);
   assert.deepEqual(result.speakingOrder, []);
   assert.ok(result.responses.every(r => r.pendingConcern === null));
+});
+
+
+test('meaningful gains and losses have a ten-point minimum, with neutral evidence unchanged', () => {
+  for (const [input, expected] of [[1, 10], [5, 10], [10, 10], [15, 15], [20, 20], [-1, -10], [-5, -10], [-15, -15], [-20, -20], [0, 0]]) {
+    const data = JSON.stringify({ ...assessment, answer_status: 'none', score_delta: input });
+    assert.equal(parseAssessment(data, null).delta, expected);
+  }
 });

@@ -62,6 +62,7 @@ interface Evaluation {
     spoke: boolean;
     wantsTurn: boolean;
     answerStatus: "none" | "resolved" | "partial" | "unanswered" | "deferred" | null;
+    assessmentStatus: "valid" | "repaired" | "unavailable" | null;
     pendingConcern: { text: string; askedRound: number } | null;
     status: "out" | "offered" | "nearly-out" | "concerned" | "engaged";
   }>;
@@ -169,3 +170,10 @@ PantryPal: 12 parent interviews, 8 willing to pay $5/month for plans/shopping li
 The bridge records `practiceCaseId` from a completed founder pitch, keeps it across the 10-round history limit, changes it for a newly named product and clears it on Reset. Terra receives the matching fixed fact sheet alongside the transcript. These facts can fill answers before the founder has mentioned them; earlier placeholder text is not evidence. Unmeasured details get an honest, complete explanation instead of new invented numbers. Custom products receive no unrelated case facts. Suggestions containing square-bracket placeholders, TODO or TBD are rejected before reaching the composer.
 
 Reproduction: `npm run test:coach:live -- --case pantrypal` supplies the same VP and Sympathizer questions reported by the user. The live Terra response produced three complete alternatives with the fixed interview counts, $5 price, six abandoned planners, and named interviewees. No blanks were returned. Repeat requests used the cache. Automated coverage includes scenario isolation, pinning across history truncation, switching/reset and placeholder rejection.
+
+
+## Invalid-assessment recovery and larger confidence changes
+
+Owner: Arjun Behl. Branch: `feat/live-reply-coach`. The reported failure came from a bid-only provider response missing the assessment fields. The backend now repeats the full response contract, requests at most one correction for that investor on the same turn, and then lets it sit out if still invalid. Other investors continue. No score or pending concern is lost and no extra deduction is applied. `assessmentStatus` exposes valid/repaired/unavailable results; unavailable has `answerStatus: null`, unchanged confidence and an explanatory private `reason`. No frontend payload change is required to keep rendering scores and speech. This limited correction can consume one extra ElevenLabs response per affected investor; connection failures/timeouts and speech are not retried.
+
+Meaningful score movements now have magnitude 10-20. Prompt targets are +10/+15/+20 for increasingly strong evidence; partial answers lose at least 10 and unanswered concerns at least 15. Neutral/repeated evidence and pauses stay at zero. Endpoint clamping may produce a smaller final movement. All four isolated app branch prompts match the new policy. Start a fresh call after restarting the server to load them.
