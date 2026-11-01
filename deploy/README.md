@@ -46,4 +46,14 @@ Verified against the hosted service:
 
 The actual user's microphone and speakers were not exercised remotely. The existing 99 automated tests and a clean-checkout production build passed before deployment. Sanitized service evidence is in [render-deployment.json](../docs/test-results/render-deployment.json).
 
-For future releases, push the approved changes to `main` and use **Manual Deploy > Deploy latest commit** on this service, then check `/health` and the visible UI. Do not assume a public-repository connection will automatically redeploy every push. Free instances sleep when idle, so the first request can take longer. Active call state is held in memory and resets on restart; no database or persistent disk is required for the current app.
+## Continuous deployment
+
+The [GitHub Actions workflow](../.github/workflows/render-deploy.yml) runs for pushes to `main`, pull requests targeting `main`, and manual workflow runs. It installs dependencies, runs the automated tests and builds the frontend. Only successful runs on `main` can request a Render deployment; pull requests never deploy or receive the hook secret.
+
+The workflow sends the tested commit SHA to Render's deploy hook, so a newer untested commit cannot be picked up accidentally. Concurrent runs for the same branch cancel older unfinished workflow runs. `RENDER_DEPLOY_HOOK_URL` is stored as an encrypted GitHub Actions repository secret, never in this file or workflow source. The hook only targets this service; it does not require a workspace-wide Render API key.
+
+For future releases, push the approved changes to `main`. See **Actions > Test and deploy to Render** in GitHub. A successful workflow means validation passed and Render accepted or queued the deployment. Follow the deployment link in the run summary to confirm Render's build and health checks finish. The existing site keeps serving until the new deployment is ready. Use **Run workflow** on `main` to retry, or **Manual Deploy > Deploy latest commit** in Render for a manual recovery.
+
+This service was created using a public repository URL, so the GitHub Actions hook supplies CD without relying on Render's connected-Git-provider auto-deploy. See [Render's deploy-hook guide](https://render.com/docs/deploy-hooks). If the hook is rotated, update the GitHub repository secret before the next push.
+
+Free instances sleep when idle, so the first request can take longer. Active call state is held in memory and resets on restart; no database or persistent disk is required for the current app.

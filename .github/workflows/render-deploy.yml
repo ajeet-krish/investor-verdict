@@ -1,0 +1,83 @@
+name: Test and deploy to Render
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/confidence-panel/package-lock.json
+      - name: Install dependencies
+        run: |
+          npm ci --include=dev
+          npm --prefix frontend/confidence-panel ci --include=dev
+      - name: Test
+        run: npm test
+      - name: Build frontend
+        run: npm run build
+      - name: Deploy tested main commit
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs';
+          const hook = process.env.RENDER_DEPLOY_HOOK_URL;
+          if (!hook) {
+            console.error('Missing GitHub Actions secret: RENDER_DEPLOY_HOOK_URL');
+            process.exit(1);
+          }
+          let url;
+          try {
+            url = new URL(hook);
+            if (url.protocol !== 'https:' || url.hostname !== 'api.render.com' ||
+                url.pathname !== '/deploy/srv-dbjrnce7bikc738c91r0' || !url.searchParams.has('key')) throw new Error();
+          } catch {
+            console.error('The deploy hook secret is not a valid URL for this Render service.');
+            process.exit(1);
+          }
+          url.searchParams.set('ref', process.env.GITHUB_SHA);
+          let response;
+          try {
+            response = await fetch(url, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000) });
+          } catch {
+            console.error('Could not reach Render. Check the Render dashboard before retrying.');
+            process.exit(1);
+          }
+          if (![200, 202].includes(response.status)) {
+            console.error(`Render rejected the deployment request (HTTP ${response.status}).`);
+            process.exit(1);
+          }
+          const data = await response.json().catch(() => ({}));
+          const id = data.deploy?.id ?? data.id;
+          const dashboard = 'https://dashboard.render.com/web/srv-dbjrnce7bikc738c91r0/deploys';
+          const link = typeof id === 'string' && /^dep-[a-z0-9]+$/.test(id) ? `${dashboard}/${id}` : dashboard;
+          const status = response.status === 202 ? 'queued' : 'requested';
+          console.log(`Render deployment ${status} for ${process.env.GITHUB_SHA}.`);
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `Tests and build passed. Render deployment ${status} for commit \`${process.env.GITHUB_SHA}\`.\n\n[Watch the deployment](${link}) · [Open the app](https://investor-verdict-uxj7.onrender.com)\n\nRender finishes its build and health checks asynchronously.\n`);
+          JS

@@ -5,6 +5,8 @@ services:
     name: investor-verdict
     runtime: node
     branch: main
+    # GitHub Actions triggers the tested commit after tests and build pass.
+    autoDeployTrigger: off
     buildCommand: npm ci --include=dev && npm --prefix frontend/confidence-panel ci --include=dev && npm run build
     startCommand: node deploy/server.js
     plan: free
