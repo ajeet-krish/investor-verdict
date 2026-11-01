@@ -16,6 +16,27 @@ export class PanelError extends Error {
   constructor(message, status = 502) { super(message); this.status = status; }
 }
 
+// Summarize connection faults without keys, tokens or transcript text so the
+// client can tell auth, agent config and network faults apart safely.
+function sanitizeConnectionDetail(error) {
+  const raw = typeof error === 'string' ? error : (error?.message || error?.code || error?.reason || '');
+  let text = String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  text = text.replace(/sk-[A-Za-z0-9_]{8,}/g, '[redacted]')
+    .replace(/xi-[A-Za-z0-9_]{8,}/g, '[redacted]')
+    .replace(/eyJ[A-Za-z0-9_.]+/g, '[redacted]');
+  const lowered = text.toLowerCase();
+  if (/401|403|unauthor|forbidden|api key|signed url|jwt|token/.test(lowered)) {
+    return 'auth fault, check API key and signed URL';
+  }
+  if (/404|not found|agent|config|first message|missing|invalid id/.test(lowered)) {
+    return 'agent config fault, check agent ID and settings';
+  }
+  if (/network|timeout|timed out|econn|socket|websocket|dns|offline/.test(lowered)) {
+    return 'network fault, check connectivity and retry';
+  }
+  return text || 'check connectivity and agent settings';
+}
+
 // Repeat the full contract each turn so a silent investor does not fall back to
 // the legacy bid-only format after a long conversation.
 const ASSESSMENT_FORMAT = {
@@ -83,9 +104,11 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
           investor.pending.resolve(investor.pending.reply);
         }
       },
-      onError: () => {
+      onError: error => {
+        const detail = sanitizeConnectionDetail(error);
+        console.warn(`[text-panel] Investor connection fault for ${role.key}: ${detail}`);
         investor.disconnected = true;
-        investor.pending?.reject(new PanelError('An investor connection failed. Retry with a new pitch session.'));
+        investor.pending?.reject(new PanelError(`An investor connection failed (${detail}). Retry with a new pitch session.`));
       },
       onDisconnect: () => {
         investor.disconnected = true;
@@ -93,13 +116,18 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
       },
     });
     if (session.closed) { await investor.connection.endSession(); throw new PanelError('Session cancelled.', 409); }
-    // The researcher has a greeting. Consume it before the first submitted pitch.
+    // The researcher greeting is best effort. New accounts in textOnly mode
+    // may never send first_message, so a missing greeting must not abort setup.
+    // Old accounts still resolve early through opening when it arrives fast.
     if (role.key === 'market_signals_researcher') {
       let timer;
       try {
         await Promise.race([opening, new Promise((_, reject) => { timer = setTimeout(() => reject(new PanelError('Investor greeting timed out.', 504)), 10000); })]);
+      } catch (error) {
+        if (!session.closed && !investor.disconnected) {
+          console.warn('[text-panel] No opening greeting from market_signals_researcher after 10s, continuing to first pitch.');
+        }
       } finally { clearTimeout(timer); }
-      clearTimeout(timer);
     }
   }
   async function ask(session, role, packet) {
