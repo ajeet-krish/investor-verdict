@@ -34,7 +34,7 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
       const abort = new AbortController();
       res.once('close', () => abort.abort());
       try {
-        for await (const chunk of replyAudio.open(sessionId, Number(url.searchParams.get('turn')), abort.signal)) {
+        for await (const chunk of replyAudio.open(sessionId, Number(url.searchParams.get('turn')), url.searchParams.get('role'), abort.signal)) {
           if (abort.signal.aborted) break;
           if (!res.headersSent) res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'Accept-Ranges': 'none' });
           if (!res.write(chunk)) await once(res, 'drain', { signal: abort.signal });

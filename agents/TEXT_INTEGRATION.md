@@ -3,7 +3,7 @@
 Contributor: **Arjun Behl**
 Date: November 1, 2026
 Worktree: `LarpHacks/investor-verdict-text`
-Branch: `feat/agents/text-integration`
+Branch: `test/investor-integration` (extends the text baseline merged in PR #3)
 Frontend baseline: `375ea41` (`origin/main`, images and text pitch UI).
 
 ## What is connected
@@ -19,13 +19,13 @@ For each founder message:
 1. All active investors privately assess the message in text-only sessions and submit `{ wants_turn, priority, reason }`. They can update their confidence even when choosing silence. These assessments run concurrently and are never returned as dialogue.
 2. The backend chooses one willing investor with the highest priority. A 10-point penalty for the previous speaker gives another investor a chance when priorities are close, but a much more relevant contribution can win consecutive turns. Exact ties use a random tie-break, not panel order. Priority is the model's relevance/urgency judgment, separate from investment confidence.
 3. Only the winner receives the `speak` grant. The backend waits for its final `agent_response_complete` event. Intermediate acknowledgements are not final dialogue. The same message cannot change that investor's score a second time during speech.
-4. All other investors are silent. If everyone passes, `speaker` is null and every reply is empty. At most one investor replies per founder submission; the next founder message opens fresh bids, so there is no compulsory round of four speeches.
+4. Remove that investor from the remaining bids and repeat selection until no willing investors remain. Each may speak once, and passers remain silent. All-pass rounds have an empty `speakingOrder`. There is no compulsory round of four speeches. Later speakers receive the earlier replies as context; willingness is assessed once per founder message.
 
-The backend shares the last founder/speaker exchange with all investors on the next assessment, alongside their own ongoing history, so they can follow the discussion and avoid repeating each other. Investors already at 0 or 100 stop bidding; their old replies are not replayed. A newly terminal investor can bid for its final verdict, but a non-winning terminal investor does not get a forced extra speaking turn. The researcher's startup greeting is consumed internally before evaluation. Invalid bids fail the request and close its sessions, without guessing a speaker or automatically starting a paid retry.
+The backend shares the full last founder/investors exchange with all investors on the next assessment, alongside their own ongoing history, so they can follow the discussion and avoid repeating each other. Investors already at 0 or 100 stop bidding; their old replies are not replayed. A newly terminal investor can bid for its final verdict, but a terminal investor who passed does not get a forced extra speaking turn. The researcher's startup greeting is consumed internally before evaluation. Invalid bids fail the request and close its sessions, without guessing a speaker or automatically starting a paid retry.
 
 Verified against all four live ElevenLabs agent configurations on November 1, 2026: `conversation_config.agent.prompt.llm` is **`deepseek-v41-flash`** for every investor. No custom LLM endpoint is configured. The role prompts now include the conditional protocol from `agents/prompts/turn-taking.md`, synchronized to all four remote agents. The model judges willingness, priority, replies, and proposed confidence; the backend grants exclusive speaking rights and validates scores. The model was not changed. Legacy voice behavior without protocol packets is unchanged; this implementation covers the backend-managed text panel.
 
-The frontend now consumes the full response, displays only the selected reply, highlights that tile, and connects Start/Reset/Leave to the session API. The existing layout and portraits are preserved. The development launcher supplies `VITE_API_URL=/api` and loads a proxy overlay from `agents/server/vite.integration.mjs`. That overlay preserves the frontend's existing asset settings. The root build script also supplies the API URL without changing frontend files.
+The frontend now consumes the full response, displays replies in `speakingOrder` and highlights only the currently playing investor, and connects Start/Reset/Leave to the session API. The existing layout and portraits are preserved. The development launcher supplies `VITE_API_URL=/api` and loads a proxy overlay from `agents/server/vite.integration.mjs`. That overlay preserves the frontend's existing asset settings. The root build script also supplies the API URL without changing frontend files.
 
 The original `LarpHacks/investor-verdict` checkout, including all its uncommitted work, was preserved. This worktree starts from the latest main, merges the agents branch, and carries over the previously authorized backend/key setup. Its ignored `.env` links to the original local credential file; the key was not copied into code or Git.
 
@@ -83,6 +83,7 @@ Example response shape:
       "status": "concerned"
     }
   ],
+  "speakingOrder": ["technical_expert"],
   "speaker": "technical_expert",
   "selectionReason": "A specific technical follow-up is needed.",
   "turn": 1,
@@ -91,7 +92,7 @@ Example response shape:
 }
 ```
 
-The actual `responses` array has four entries in frontend order. Only the winner has `spoke: true` and a nonempty `reply`; non-winners have an empty reply, even if they bid. `speaker` and `selectionReason` are null when nobody speaks. Private bid text is never displayed as dialogue. Input is limited to 4,000 characters, four known unique panelists, and four finite scores. Submitted scores are validated for compatibility but do not override authoritative server scores.
+The actual `responses` array has four entries in frontend order. Every contributor has `spoke: true` and a nonempty `reply`; passers have an empty reply. `speakingOrder` contains each contributor once in speaking order and is the frontend authority. The legacy `speaker` and `selectionReason` identify the first contributor only. `speaker` and `selectionReason` are null when nobody speaks. Private bid text is never displayed as dialogue. Input is limited to 4,000 characters, four known unique panelists, and four finite scores. Submitted scores are validated for compatibility but do not override authoritative server scores.
 
 An HttpOnly, SameSite=Strict cookie associates follow-up requests with the same four agent conversations and score controller. Scores start at 50, can move up or down by at most 20 per substantive turn, and freeze at 0 or 100. Each investor reports scores through `report_investor_interest`. Intermediate tool acknowledgements are not treated as final answers; the adapter waits for `agent_response_complete`, now enabled on all four remote agents.
 
@@ -103,9 +104,11 @@ Sessions close after two idle minutes, on explicit `POST /api/reset`, on an eval
 
 Start/Reset/Leave call `/api/reset`. Controls are disabled during evaluation/reset, and there is no request queue, so stale work cannot enter a new pitch. Failures preserve text for manual retry. The Freeze control and silent heuristic fallback are removed from the live flow. See `agents/FRONTEND_HANDOFF.md` for the full contract and validation record.
 
-Only text replies were tested. Audio output and public deployment are outside this change. The separate Render deployment files from main are preserved, but that server does not yet host these text endpoints. The verified root launcher uses the loopback API and Vite proxy.
+This branch also plays each reply sequentially and pauses the live microphone for the full round. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for current tests and controls. Public deployment remains outside this change. The separate Render deployment files from main are preserved, but that server does not yet host these text endpoints. The verified root launcher uses the loopback API and Vite proxy.
 
-## Verification
+## Historical text-baseline verification
+
+These checks predate the multi-speaker audio branch. The current automated suite has 35 passing tests; see the audio test document for the latest browser validation.
 
 - Frontend source changes are limited to `main.ts` and four CSS rules; no HTML layout or portrait changes.
 - 20 automated tests pass, including relevance selection, consecutive-speaker penalty, random tie-breaking, all-pass silence, shared context, exclusive speaker grants, terminal silence, invalid bids, score gating, error cleanup, persistent sessions, and API credential handling.

@@ -118,13 +118,14 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
   }
 
   return {
-    getSpeech(sessionId, turn) {
+    getSpeech(sessionId, turn, role) {
       const session = sessions.get(sessionId);
       if (!session || session.closed) throw new PanelError('Pitch session expired. Start a new pitch.', 409);
       if (!Number.isSafeInteger(turn) || session.busy || turn !== session.turn) throw new PanelError('That reply is no longer current.', 409);
-      if (!session.lastExchange?.speaker || !session.lastExchange.reply) throw new PanelError('No investor spoke on this turn.', 404);
+      const reply = session.lastExchange?.responses.find(reply => reply.role === role);
+      if (!reply) throw new PanelError('No investor spoke with that role on this turn.', 404);
       idle(session);
-      return { role: session.lastExchange.speaker, text: session.lastExchange.reply };
+      return { role: reply.role, text: reply.reply };
     },
     async evaluate(body, sessionId) {
       const input = validatePitch(body);
@@ -160,35 +161,43 @@ export function createTextPanelService({ env = process.env, getSignedUrl, sdk = 
           try { return { key: role.key, ...parseBid(answer) }; }
           catch { throw new PanelError('An investor returned an invalid turn bid. No speaker was selected.'); }
         }));
-        const winner = selectSpeaker(bids, session.lastSpeaker, random);
-        let spokenReply = '';
-        if (winner) {
+        const remaining = [...bids];
+        const speeches = [];
+        let winner;
+        // Willing investors contribute at most once, with exclusive sequential grants.
+        while ((winner = selectSpeaker(remaining, session.lastSpeaker, random))) {
+          remaining.splice(remaining.indexOf(winner), 1);
           const role = PANEL.find(role => role.key === winner.key);
           const state = session.controller.snapshot().find(s => s.key === role.key);
-          spokenReply = await ask(session, role, {
+          const reply = await ask(session, role, {
             protocol: 'investor_panel_v1', phase: 'speak', round: session.turn + 1,
             founder_message: input.pitch, bid_reason: winner.reason,
+            previous_exchange: { founder: input.pitch, responses: [...speeches] },
             confidence: state.confidence, status: state.status,
           });
+          speeches.push({ role: role.key, reply });
           session.lastSpeaker = role.key;
-          session.investors.get(role.key).lastReply = spokenReply;
+          session.investors.get(role.key).lastReply = reply;
         }
-        session.lastExchange = { founder: input.pitch, speaker: winner?.key ?? null, reply: spokenReply };
+        const first = speeches[0];
+        session.lastExchange = { founder: input.pitch, speaker: first?.role ?? null,
+          reply: first?.reply ?? '', responses: speeches };
         const states = session.controller.snapshot();
         const responses = input.panelists.map(title => {
           const role = PANEL.find(p => p.title === title);
           const state = states.find(s => s.key === role.key);
           const bid = bids.find(b => b.key === role.key);
-          const spoke = winner?.key === role.key;
+          const speech = speeches.find(s => s.role === role.key);
+          const spoke = Boolean(speech);
           return { panelist: title, role: role.key, confidence: state.confidence, reason: state.reason,
-            reply: spoke ? spokenReply : '', spoke, wantsTurn: bid?.wantsTurn ?? false,
+            reply: speech?.reply ?? '', spoke, wantsTurn: bid?.wantsTurn ?? false,
             status: state.status };
         });
         session.turn++;
         return {
           sessionId: session.id,
-          result: { scores: responses.map(r => r.confidence), responses, speaker: winner?.key ?? null,
-            selectionReason: winner?.reason ?? null, turn: session.turn, source: 'elevenlabs', initialScore: 50 },
+          result: { scores: responses.map(r => r.confidence), responses, speakingOrder: speeches.map(s => s.role), speaker: first?.role ?? null,
+            selectionReason: bids.find(b => b.key === first?.role)?.reason ?? null, turn: session.turn, source: 'elevenlabs', initialScore: 50 },
         };
       } catch (error) {
         await dispose(session);

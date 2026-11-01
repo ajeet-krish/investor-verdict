@@ -59,7 +59,33 @@ test('disconnect cancels generation when no listeners remain', async () => {
     return (async function*(){yield Buffer.from('first');await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true}));})();
   }});
   const abort=new AbortController();
-  const stream=service.open('session',1,abort.signal);
+  const stream=service.open('session',1,'technical_expert',abort.signal);
   await stream.next();abort.abort();await stream.next();
   assert.equal(upstreamSignal.aborted,true);service.close();
+});
+
+
+test('each contributing investor has its own voice and cache within the same round', async t => {
+  const calls = [];
+  let currentTurn = 1;
+  const service = createReplyAudio({
+    textPanel: { getSpeech: (session, turn, role) => {
+      if (turn !== currentTurn || !['sympathizer', 'interrogator'].includes(role)) throw new PanelError('No current reply.', 404);
+      return { role, text: `${role} reply ${turn}` };
+    } },
+    synthesize: async ({ text, voiceId }) => {
+      calls.push(voiceId);
+      return (async function* () { yield Buffer.from(text); })();
+    },
+  });
+  t.after(() => service.close());
+  for (const role of ['sympathizer', 'interrogator', 'sympathizer']) {
+    assert.equal(await collect(service.open('session', 1, role)), `${role} reply 1`);
+  }
+  assert.deepEqual(calls, [INVESTOR_VOICES.sympathizer, INVESTOR_VOICES.interrogator]);
+  assert.throws(() => service.open('session', 1, 'technical_expert'), /No current reply/);
+  currentTurn++;
+  assert.equal(await collect(service.open('session', 2, 'sympathizer')), 'sympathizer reply 2');
+  assert.throws(() => service.open('session', 1, 'sympathizer'), /No current reply/);
+  assert.equal(calls.length, 3);
 });

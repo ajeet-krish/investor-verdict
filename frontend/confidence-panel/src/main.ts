@@ -10,7 +10,7 @@ type InvestorRole = "technical_expert" | "market_signals_researcher" | "interrog
 interface Evaluation {
   scores: number[];
   responses: { role: InvestorRole; panelist: string; reply: string; spoke: boolean }[];
-  speaker: InvestorRole | null;
+  speakingOrder: InvestorRole[];
   turn: number;
 }
 
@@ -88,7 +88,9 @@ async function evaluate(pitch: string, current: number[]): Promise<Evaluation> {
     throw new Error("Unexpected investor response.");
   }
   const speakers = data.responses.filter(r => r.spoke);
-  if (data.speaker === null ? speakers.length !== 0 : speakers.length !== 1 || speakers[0].role !== data.speaker) {
+  if (!Array.isArray(data.speakingOrder) || data.speakingOrder.length !== speakers.length ||
+      new Set(data.speakingOrder).size !== speakers.length ||
+      !data.speakingOrder.every(role => speakers.some(r => r.role === role))) {
     throw new Error("Unexpected investor speaker.");
   }
   return data;
@@ -299,21 +301,24 @@ function main(): void {
       panel.forEach((p, i) => (p.score = result.scores[i]));
       draw();
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
-      const reply = result.responses.find(r => r.spoke);
-      showSpeaker(result.speaker);
-      if (reply) {
+      if (!result.speakingOrder.length) showNotice("The panel is listening.");
+      for (const role of result.speakingOrder) {
+        if (current !== epoch) return;
+        const reply = result.responses.find(r => r.role === role)!;
+        showSpeaker(role);
         addMsg("investor", `${reply.panelist}: ${reply.reply}`);
         if (currentAudio === audioGeneration) {
+          notice = "";
           speakingName = reply.panelist;
           audioPlaying = true;
           skipAudio.hidden = false;
           setBusy(true);
           renderStatus();
-          const played = await player.play(`${API_URL}/reply-audio?turn=${result.turn}`);
+          const played = await player.play(`${API_URL}/reply-audio?turn=${result.turn}&role=${role}`);
           if (current !== epoch) return;
           if (!played) showNotice('Audio stopped or unavailable. The investor reply is in the chat.');
         }
-      } else showNotice("The panel is listening.");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "The panel couldn't respond.";
       addMsg("sys", `${message} Your text is below so you can retry.`);
@@ -322,6 +327,7 @@ function main(): void {
     } finally {
       if (current === epoch) {
         audioPlaying = false;
+        showSpeaker(null);
         skipAudio.hidden = true;
         replyAudio.hidden = true;
         setBusy(false);
@@ -369,7 +375,7 @@ function main(): void {
     else if (!busy) { notice = ''; void voice.start(); }
   });
   skipAudio.addEventListener('click', () => player.stop());
-  window.addEventListener('pagehide', () => { voice.stop(); player.stop(); });
+  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; voice.stop(); player.stop(); });
 
   camBtn.addEventListener("click", () => {
     const on = camBtn.getAttribute("aria-pressed") !== "true";

@@ -50,15 +50,15 @@ test('voice tokens are temporary, uncached, origin-checked and rate-limited', as
   }
   assert.equal((await request()).status,429);assert.equal(minted,12);
 });
-test('reply audio uses the cookie and turn, streams MP3, and reset cancels audio', async t=>{
+test('reply audio uses the cookie, turn and role, streams MP3, and reset cancels audio', async t=>{
   const calls=[];
   const {base}=await setup(t,{
     textPanel:{reset:async id=>calls.push(['reset-panel',id])},
-    replyAudio:{open:(id,turn)=>{calls.push(['audio',id,turn]);return (async function*(){yield Buffer.from('mp3-bytes');})();},reset:id=>calls.push(['reset-audio',id])},
+    replyAudio:{open:(id,turn,role)=>{calls.push(['audio',id,turn,role]);return (async function*(){yield Buffer.from('mp3-bytes');})();},reset:id=>calls.push(['reset-audio',id])},
   });
-  const r=await fetch(base+'/api/reply-audio?turn=3',{headers:{Cookie:'verdict_session=owned'}});
+  const r=await fetch(base+'/api/reply-audio?turn=3&role=interrogator',{headers:{Cookie:'verdict_session=owned'}});
   assert.equal(r.headers.get('content-type'),'audio/mpeg');assert.equal(await r.text(),'mp3-bytes');
   const reset=await fetch(base+'/api/reset',{method:'POST',headers:{'Content-Type':'application/json',Cookie:'verdict_session=owned'},body:'{}'});
   assert.equal(reset.status,200);
-  assert.deepEqual(calls,[['audio','owned',3],['reset-audio','owned'],['reset-panel','owned']]);
+  assert.deepEqual(calls,[['audio','owned',3,'interrogator'],['reset-audio','owned'],['reset-panel','owned']]);
 });

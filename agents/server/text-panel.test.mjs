@@ -50,20 +50,20 @@ function fakeSdk({ bid = () => willing(), holdSpeech = false, failSpeech = false
 const makeService = (sdk, options = {}) => createTextPanelService({ env, sdk, getSignedUrl: async id => `wss://test/${id}`, random: () => 0, ...options });
 
 test('existing payload keeps four scores, with one dynamically chosen speaker and shared history', async () => {
-  const sdk = fakeSdk({ bid: (role, round) => willing(role === (round === 1 ? 'interrogator' : 'sympathizer') ? 95 : 20) });
+  const sdk = fakeSdk({ bid: (role, round) => role === (round === 1 ? 'interrogator' : 'sympathizer') ? willing(95) : pass });
   const service = makeService(sdk);
   try {
     const first = await service.evaluate(pitch);
     assert.deepEqual(first.result.scores, [55, 55, 55, 55]);
     assert.equal(first.result.speaker, 'interrogator');
-    assert.equal(service.getSpeech(first.sessionId, 1).role, 'interrogator');
-    assert.throws(() => service.getSpeech('another-session', 1), /expired/);
+    assert.equal(service.getSpeech(first.sessionId, 1, 'interrogator').role, 'interrogator');
+    assert.throws(() => service.getSpeech('another-session', 1, 'interrogator'), /expired/);
     assert.equal(first.result.responses.filter(r => r.spoke).length, 1);
     assert.ok(first.result.responses.filter(r => !r.spoke).every(r => r.reply === ''));
     assert.ok(sdk.configs.every(c => c.textOnly));
     const second = await service.evaluate({ ...pitch, scores: [1, 2, 3, 4] }, first.sessionId);
     assert.equal(second.result.speaker, 'sympathizer');
-    assert.throws(() => service.getSpeech(first.sessionId, 1), /no longer current/);
+    assert.throws(() => service.getSpeech(first.sessionId, 1, 'interrogator'), /no longer current/);
     assert.deepEqual(second.result.scores, [60, 60, 60, 60]);
     const assessments = sdk.sent.filter(s => s.packet.round === 2 && s.packet.phase === 'assess');
     assert.equal(assessments.length, 4);
@@ -83,6 +83,7 @@ test('everyone can pass without a speech request or a fabricated reply', async (
   try {
     const { result, sessionId } = await service.evaluate(pitch);
     assert.equal(result.speaker, null);
+    assert.deepEqual(result.speakingOrder, []);
     assert.throws(() => service.getSpeech(sessionId, 1), /No investor spoke/);
     assert.equal(result.selectionReason, null);
     assert.ok(result.responses.every(r => !r.spoke && !r.wantsTurn && r.reply === ''));
@@ -145,6 +146,7 @@ test('terminal investors stop bidding, and their old replies are not replayed', 
     const { result } = await service.evaluate(pitch, first.sessionId);
     assert.equal(sdk.sent.length, count);
     assert.equal(result.speaker, null);
+    assert.deepEqual(result.speakingOrder, []);
     assert.deepEqual(result.scores, [100, 100, 100, 100]);
     assert.ok(result.responses.every(r => r.reply === ''));
   } finally { await service.close(); }
@@ -185,4 +187,46 @@ test('turn bid validation rejects malformed priorities and accepts explicit sile
   for (const bid of ['not json', { ...pass, priority: 90 }, { ...willing(), priority: 101 }, { ...willing(), wants_turn: 'yes' }, { ...willing(), reason: '' }]) {
     assert.throws(() => parseBid(typeof bid === 'string' ? bid : JSON.stringify(bid)), /invalid turn bid/);
   }
+});
+
+
+test('multiple willing investors speak sequentially in bid order while others sit out', async () => {
+  const sdk = fakeSdk({ holdSpeech: true, bid: role =>
+    role === 'sympathizer' ? willing(95) : role === 'technical_expert' ? willing(70) : pass });
+  const service = makeService(sdk);
+  const evaluation = service.evaluate(pitch);
+  evaluation.catch(() => {});
+  const grants = () => sdk.sent.filter(s => s.packet.phase === 'speak');
+  try {
+    await setImmediate();
+    assert.deepEqual(grants().map(s => s.role), ['sympathizer']);
+    sdk.finishSpeech();
+    await setImmediate();
+    assert.deepEqual(grants().map(s => s.role), ['sympathizer', 'technical_expert']);
+    assert.deepEqual(grants()[1].packet.previous_exchange.responses.map(r => r.role), ['sympathizer']);
+    sdk.finishSpeech();
+    const { result, sessionId } = await evaluation;
+    assert.deepEqual(result.speakingOrder, ['sympathizer', 'technical_expert']);
+    assert.equal(result.responses.filter(r => r.spoke).length, 2);
+    assert.deepEqual(result.scores, [55, 55, 55, 55], 'score only once despite multiple speeches');
+    for (const role of result.speakingOrder) assert.equal(service.getSpeech(sessionId, 1, role).role, role);
+    assert.throws(() => service.getSpeech(sessionId, 1, 'interrogator'), /No investor spoke/);
+    assert.throws(() => service.getSpeech(sessionId, 1, 'unknown'), /No investor spoke/);
+    assert.throws(() => service.getSpeech(sessionId, 1), /No investor spoke/);
+    assert.ok(result.responses.filter(r => !r.spoke).every(r => r.reply === ''));
+    assert.ok(sdk.blockedScores.every(s => s.accepted === false));
+  } finally { await service.close(); }
+});
+
+test('all four may volunteer once, with the full exchange shared next round', async () => {
+  const sdk = fakeSdk();
+  const service = makeService(sdk);
+  try {
+    const first = await service.evaluate(pitch);
+    assert.equal(first.result.speakingOrder.length, 4);
+    assert.equal(new Set(first.result.speakingOrder).size, 4);
+    await service.evaluate(pitch, first.sessionId);
+    const assessments = sdk.sent.filter(s => s.packet.round === 2 && s.packet.phase === 'assess');
+    assert.ok(assessments.every(s => s.packet.previous_exchange.responses.length === 4));
+  } finally { await service.close(); }
 });

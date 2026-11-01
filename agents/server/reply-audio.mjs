@@ -21,15 +21,15 @@ export function createReplyAudio({ textPanel, synthesize, ttlMs = 120000, maxByt
     job.waiters.clear();
   }
   return {
-    open(sessionId, turn, signal) {
+    open(sessionId, turn, role, signal) {
       // Authorize using the cookie and authoritative selected reply, never client text/voice IDs.
-      const reply = textPanel.getSpeech(sessionId, turn);
+      const reply = textPanel.getSpeech(sessionId, turn, role);
       const voiceId = INVESTOR_VOICES[reply.role];
       if (!voiceId) throw new PanelError('Investor voice is not configured.', 503);
-      const key = `${sessionId}:${turn}`;
+      const key = `${sessionId}:${turn}:${reply.role}`;
       let job = jobs.get(key);
       if (!job) {
-        for (const [oldKey, oldJob] of jobs) if (oldKey.startsWith(`${sessionId}:`)) remove(oldKey, oldJob);
+        for (const [oldKey, oldJob] of jobs) if (oldKey.startsWith(`${sessionId}:`) && !oldKey.startsWith(`${sessionId}:${turn}:`)) remove(oldKey, oldJob);
         if (jobs.size >= 16) throw new PanelError('Audio capacity reached. Try later.', 429);
         job = { parts: [], size: 0, done: false, error: null, users: 0, waiters: new Set(), abort: new AbortController() };
         const current = job;
