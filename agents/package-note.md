@@ -1,13 +1,5 @@
-# Agents package note
+# SDK dependencies
 
-Live voice uses dynamic import of `@elevenlabs/client` so mock bundles never load it.
+Use `npm install` at the repository root. The root package.json and package-lock.json pin `@elevenlabs/client` for browser sessions and `@elevenlabs/elevenlabs-js` for server authentication. The previous suggested client version 0.3.1 was unavailable from npm and has been replaced with 1.32.1.
 
-There is no root package.json in this repo yet, so the frontend app owns this dependency. Before using live mode, install the pinned client from the frontend folder:
-
-`npm i @elevenlabs/client@0.3.1`
-
-Notes:
-* Keep this pinned version in sync with `agents/README.md`
-* Mock mode needs no install and no key
-* Live mode uses public agent IDs in the browser, no key in client code
-* Signed URL support is optional for private agents
+Run `npm --prefix frontend/confidence-panel ci` for the frontend build tools. Keep the API key only in the ignored root `.env`. See [README.md](README.md).

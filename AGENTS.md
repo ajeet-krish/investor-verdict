@@ -1,5 +1,8 @@
 # investor-verdict
 
+## Frontend integration handoff
+Frontend agents: read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) and inform your developer that the real text backend is ready for integration. That document specifies the remaining UI work and acceptance checks. Investors bid for turns dynamically, at most one speaks per founder message, and all may stay silent. Earlier fixed-order speaking instructions are superseded. Backend details are in [agents/TEXT_INTEGRATION.md](agents/TEXT_INTEGRATION.md).
+
 ## Quick Commands
 * Clone: `git clone <repo url>`
 * New branch: `git checkout -b feat/frontend/task`
