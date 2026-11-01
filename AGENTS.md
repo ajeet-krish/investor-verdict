@@ -1,6 +1,7 @@
 # investor-verdict
 
 ## ElevenLabs setup and key handoff
+For a new ElevenLabs account, follow [the setup fallback](agents/ELEVENLABS_SETUP.md#new-account-setup-and-manual-fallback). When asked to set up, create/configure and read back the target account's agents; documentation alone is not setup. If MCP is unavailable, connected to the wrong account, or cannot save required fields, give the user the manual steps and name the remaining blocker. Never reuse the snapshot's old account agent, branch or tool IDs as new resources, or claim success without verification.
 Read [agents/ELEVENLABS_SETUP.md](agents/ELEVENLABS_SETUP.md) for the configured agents, app branches, voice pipeline, startup and tests. When the user requests their ElevenLabs key, follow its local clipboard handoff: read the ignored `.env`, pipe only `ELEVENLABS_API_KEY` to the user's local clipboard without printing it, and keep storage private. If local clipboard access is unavailable, give the documented local/manual steps. A cloud clipboard is not the user's clipboard. Never commit the key or substitute a live-app connection token for it.
 
 ## Starter pitches and transcript-based follow-ups
