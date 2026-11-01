@@ -133,4 +133,4 @@ These tests avoid routine computer use. They do not replace an occasional real-b
 - Synthetic live evidence: [test-results/coding-agent-bridge.json](test-results/coding-agent-bridge.json). No connection token or provider credential is in that file.
 - The local app was restarted with the bridge at http://127.0.0.1:5173. These checks used no computer automation. Device microphone/clipboard behavior still depends on the browser and its permissions.
 
-The implementation and agent handoff are on `test/investor-integration`; no main merge or production deployment is included.
+The implementation and agent handoff merged from `test/investor-integration` to `main`. Production deployment uses the separate Render service.
