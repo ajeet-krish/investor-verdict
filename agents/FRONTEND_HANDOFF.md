@@ -227,3 +227,8 @@ Routine tests: `npm test`, `npm run build`, `npm run test:offers -- --audio`, `n
 Validation: the final live offer test passed seven result turns. Scores reached 100/0/30/100, producing one zero-score farewell, two mandatory offers and one ordinary reply in the same round. Declining the CTO produced one goodbye with unchanged scores and left the Sympathizer's offer pending. Accepting the Sympathizer produced its final statement followed by the remaining Interrogator's good-luck message, with no return from the previously departed VP or CTO. All selected audio streams were nonempty and every result passed the frontend contract validator. Evidence: [offer-decisions.json](../docs/test-results/offer-decisions.json). The first live run exposed the wrong-phase speech format; the bounded correction was added and regression-tested before the successful run.
 
 Final checks: all 98 automated tests, the TypeScript/production build, the offline coding-agent bridge smoke and the isolated real ElevenLabs offer/audio test pass. No browser automation was used.
+
+
+## Main publication and deployment adapter merge
+
+The user authorized pushing this complete implementation to `main`. Newer main commits containing the product README and deployment hardening are preserved. The Render adapter now also routes offer decisions and coaching through the shared implementation, retaining origin/rate-limit/secure-cookie protections. Coach cancellation on reset/shutdown and the 30-minute offer cookie are included. The adapter regression runs without real credentials or paid calls. Actual Render configuration and deployed runtime behavior remain outside this local verification.

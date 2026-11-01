@@ -8,7 +8,7 @@ Branch: `test/investor-integration`
 
 Date: November 1, 2026
 
-This branch adds real-time microphone transcription and streamed investor speech to the working text panel. It is a local experiment, not merged into main or deployed to Render. The four main investor configurations are unchanged. This branch now targets isolated ElevenLabs branches with the v2 concern protocol; see [TWO_INVESTOR_ROUNDS.md](TWO_INVESTOR_ROUNDS.md) for the current policy and command-line tests.
+This branch adds real-time microphone transcription and streamed investor speech to the working text panel. It merged from `test/investor-integration` to `main`. The separate Render deployment remains unverified for this integration. The four main investor configurations are unchanged. This branch now targets isolated ElevenLabs branches with the v2 concern protocol; see [TWO_INVESTOR_ROUNDS.md](TWO_INVESTOR_ROUNDS.md) for the current policy and command-line tests.
 
 ## Try it locally
 
@@ -47,7 +47,7 @@ The two single-speaker browser checks below describe the earlier audio baseline.
 
 A multi-investor browser test then submitted one synthetic pitch addressed to the Technical Expert and Market Researcher, with the other two asked to sit out. Both contributors replied and played sequentially; the others stayed silent. Scores were 55/55/50/50. The final audio reached its 15.86-second endpoint with `ended: true` and no error; input was enabled again. Screenshot: `agents/multi-investor-audio-preview.png`.
 
-The live test validates the current account, local microphone path, and browser playback. It is not a load test or proof of behavior on every browser/device. Production hosting, authentication, and the separate Render server integration remain outside this branch.
+The live test validates the current account, local microphone path, and browser playback. It is not a load test or proof of behavior on every browser or device. The separate Render server integration remains unverified for this integration.
 
 ## Provider references
 

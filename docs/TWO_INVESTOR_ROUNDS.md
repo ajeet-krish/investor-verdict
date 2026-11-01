@@ -136,7 +136,7 @@ All four agents still use `deepseek-v41-flash` and their existing voices. Each n
 
 The branch mapping is committed as non-secret configuration. For another account, create one test branch per agent, append `two-investor-rounds.md` to that agent's existing role prompt, and supply a matching mapping file through `ELEVENLABS_PANEL_BRANCHES_FILE`. Its format is an array of `{agentId, branchId}`. Missing mappings fail instead of connecting to an agent's main version. Keep the existing final-response-completion event enabled. These branches were created and updated through the ElevenLabs connector; no main prompt or traffic deployment was changed.
 
-The assessment recovery and larger-score fix is on `feat/live-reply-coach`. No merge, main push or production deployment is part of this fix.
+The user authorized merging `feat/live-reply-coach` into `main`, including assessment recovery, coaching, animated exits and offer decisions. The separate Render adapter preserves its origin, secure-cookie and rate-limit guards and now exposes the new offer and coaching routes.
 
 ## Earlier validation record (before the larger-score update)
 
@@ -144,7 +144,7 @@ The assessment recovery and larger-score fix is on `feat/live-reply-coach`. No m
 - TypeScript and the production build pass. The existing non-fatal 606 KB ElevenLabs browser bundle warning remains.
 - All three final live scenarios pass across 10 founder messages. In `both`, both investors rose from 50 to 60. In `one`, the answered Technical Expert rose to 60 while the ignored Market Researcher fell to 40, then recovered to 50 after an answer. In `neither`, both fell from 50 to 40 for evasion and to 35 for partial answers, stayed at 35 during the pause, then recovered after evidence.
 - The `neither` live run fetched eight real MP3 streams through the authenticated audio route, sequentially, without browser automation. All were nonempty and returned audio/mpeg.
-- The current app was restarted on http://127.0.0.1:5173 with the new branch configuration. Main and the separate Render deployment were not changed.
+- The current app was restarted on http://127.0.0.1:5173 with the new branch configuration. Main now includes this integration. The separate Render deployment remains unverified for this integration.
 
 Machine-readable evidence, containing only synthetic founder inputs and model responses: [test-results/two-investor-rounds.json](test-results/two-investor-rounds.json).
 

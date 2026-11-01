@@ -5,6 +5,14 @@
 # Docker runtime can still build. If dashboard shows Docker type, either keep
 # Docker and Render will use deploy/Dockerfile, or switch dashboard service to
 # Node runtime with Root deploy, Build npm install, Start npm start.
+# Routes served from deploy/server.js with Node builtins only: GET /health,
+# POST /api/signed-url (legacy agentKey flow), POST /api/evaluate,
+# POST /api/reset, /api/offer-decision, /api/coach,
+# GET or POST /api/reply-audio, GET or POST /api/voice-token,
+# /api/agent-bridge/*, GET /api/elevenlabs/config,
+# POST /api/elevenlabs/signed-url. Panel routes load agents/server handlers
+# with dynamic import. Server Sentry is optional: set SENTRY_DSN plus install
+# @sentry/node in deploy to enable, empty value keeps it disabled.
 services:
     - type: web
       name: investor-verdict
