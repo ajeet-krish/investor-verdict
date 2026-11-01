@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Verdict</title>
+</head>
+<body>
+  <section class="welcome" id="welcome">
+    <svg class="mark" viewBox="0 0 56 40" aria-hidden="true">
+      <rect x="2" y="16" width="9" height="22" rx="4.5" fill="#d9544f" />
+      <rect x="16" y="8" width="9" height="30" rx="4.5" fill="#e0a63a" />
+      <rect x="30" y="2" width="9" height="36" rx="4.5" fill="#3fd16a" />
+      <rect x="44" y="12" width="9" height="26" rx="4.5" fill="#e0a63a" />
+    </svg>
+    <h1>Welcome to Verdict</h1>
+    <p class="lead">A live read on how confident the room really is.</p>
+    <button class="start" id="start" type="button">Click here to get started</button>
+  </section>
+
+  <div class="app" id="app" hidden>
+    <h1>Verdict</h1>
+    <p class="sub">Four panelists, one live confidence score each. Add a photo to any tile to replace the number.</p>
+    <div class="z">
+      <div class="bar"><span><span class="rec"></span>Investment panel</span><span id="timer">00:14:32</span></div>
+      <div class="g" id="grid"></div>
+      <div class="tb">
+        <button id="pause" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
+          <span id="pause-label" style="margin-left:8px">Pause scores</span>
+        </button>
+        <button type="button" aria-label="Mute"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" /></svg></button>
+        <button type="button" aria-label="Camera"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg></button>
+        <button type="button" aria-label="Chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" /></svg></button>
+        <button id="reset" type="button">Reset</button>
+        <button class="lv" id="leave" type="button">Leave</button>
+      </div>
+    </div>
+    <p class="note">Photos stay on this device only and are never uploaded.</p>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
