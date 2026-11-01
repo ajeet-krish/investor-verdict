@@ -18,23 +18,106 @@
     <button class="start" id="start" type="button">Click here to get started</button>
   </section>
 
+  <section class="choose" id="choose" hidden>
+    <h1>What are you practising for?</h1>
+    <p class="lead">Pick the kind of panel you'll face.</p>
+    <div class="options">
+      <button class="opt" type="button" data-mode="job">
+        <strong>Job interview</strong>
+        <span>Face a hiring panel</span>
+      </button>
+      <button class="opt" type="button" data-mode="investor">
+        <strong>Investor interview</strong>
+        <span>Pitch to a panel of investors</span>
+      </button>
+    </div>
+    <button class="back" id="back" type="button">Back</button>
+  </section>
+
   <div class="app" id="app" hidden>
     <h1>Verdict</h1>
-    <p class="sub">Four panelists, one live confidence score each. Add a photo to any tile to replace the number.</p>
+    <p class="sub">Pitch to the panel by typing or speaking. Each panelist scores how confident they are.</p>
+    <div class="layout">
     <div class="z">
-      <div class="bar"><span><span class="rec"></span>Investment panel</span><span id="timer">00:14:32</span></div>
+      <div class="bar"><span><span class="rec"></span><span id="mode-label">Investment panel</span></span><span id="timer">00:14:32</span></div>
       <div class="g" id="grid"></div>
+      <section class="offer-choices" id="offer-choices" aria-label="Investment offer decision" aria-live="polite" hidden></section>
+      <div class="call-empty" id="call-empty" role="status" hidden>
+        <h2>The investors have left</h2>
+        <p>Review their feedback in the transcript, then try your pitch again.</p>
+        <button id="call-restart" type="button">Try a new pitch</button>
+      </div>
+
+      <div class="chatbox" id="chatbox">
+        <div class="log" id="log" role="log" aria-label="Conversation transcript" aria-live="polite"></div>
+        <form id="form" autocomplete="off">
+          <input id="prompt" type="text" placeholder="Pitch to the panel" aria-label="Your pitch" />
+          <button id="send" type="submit">Send</button>
+        </form>
+        <div class="status" id="status" aria-live="polite"></div>
+        <audio id="reply-audio" controls preload="none" hidden aria-label="Investor voice reply"></audio>
+        <button id="skip-audio" type="button" hidden>Skip reply</button>
+      </div>
+
+      <details class="agent-panel">
+        <summary>Coding agent collaboration</summary>
+        <p id="agent-status" aria-live="polite"></p>
+        <div class="agent-actions">
+          <button id="agent-connect" type="button">Allow coding agent</button>
+          <button id="agent-copy" type="button" hidden>Copy connection</button>
+          <button id="agent-toggle" type="button" hidden>Pause agent</button>
+          <button id="agent-disconnect" type="button" hidden>Disconnect agent</button>
+        </div>
+        <div id="agent-draft" hidden>
+          <p id="agent-draft-text"></p>
+          <button id="agent-approve" type="button">Send suggestion to investors</button>
+          <button id="agent-reject" type="button">Dismiss suggestion</button>
+        </div>
+      </details>
+
       <div class="tb">
-        <button id="pause" type="button" aria-pressed="false">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
-          <span id="pause-label" style="margin-left:8px">Pause scores</span>
+        <button id="mic" type="button" aria-pressed="false" aria-label="Turn microphone on">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /><path class="slash" d="M4 4l16 16" /></svg>
         </button>
-        <button type="button" aria-label="Mute"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" /></svg></button>
-        <button type="button" aria-label="Camera"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg></button>
-        <button type="button" aria-label="Chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" /></svg></button>
+        <button id="cam" type="button" aria-pressed="true" aria-label="Hide photos">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="12" height="10" rx="2" /><path d="M15 11l6-3v8l-6-3z" /></svg>
+        </button>
+        <button id="chat" type="button" aria-pressed="true" aria-label="Hide chat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+        </button>
+        <button id="freeze" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
+          <span id="freeze-label" style="margin-left:8px">Freeze scores</span>
+        </button>
+        <button id="tipsbtn" type="button" aria-pressed="true">Pitches</button>
         <button id="reset" type="button">Reset</button>
         <button class="lv" id="leave" type="button">Leave</button>
       </div>
+    </div>
+    <aside class="tips" id="tips" aria-label="Practice pitches">
+      <div class="tips-head" id="pitch-heading">Pick a practice pitch</div>
+      <p class="suggestion-caption" id="pitch-status" role="status">Three fictional practice cases with fixed people, numbers and pricing. Select one, then press Send.</p>
+      <ol class="input-examples" id="pitch-options">
+        <li>
+          <button class="pitch-option" type="button" aria-label="Use PantryPal pitch">
+            <span class="pitch-title">PantryPal · Meal planning</span>
+            <span class="pitch-copy">In this fictional practice case, I'm building PantryPal for working parents who want to waste less food. We interviewed 12 parents, and 8 said they would pay $5 a month for weekly plans. Our 20-household pilot has 5 paying users. What would you want us to validate next?</span>
+          </button>
+        </li>
+        <li>
+          <button class="pitch-option" type="button" aria-label="Use BorrowBox pitch">
+            <span class="pitch-title">BorrowBox · Tool sharing</span>
+            <span class="pitch-copy">In this fictional practice case, I'm building BorrowBox so neighbours can rent tools instead of buying them. We interviewed 15 residents and completed 12 rentals in a four-week pilot. Rentals averaged $8, and we earned a 20% fee. What is the biggest risk you see?</span>
+          </button>
+        </li>
+        <li>
+          <button class="pitch-option" type="button" aria-label="Use StudySprint pitch">
+            <span class="pitch-title">StudySprint · Study planning</span>
+            <span class="pitch-copy">In this fictional practice case, I'm building StudySprint to turn university deadlines into daily study plans. We interviewed 18 students and tested it with 40. Eight students pay $4 a month, and 26 returned in week two. What would you want us to validate next?</span>
+          </button>
+        </li>
+      </ol>
+    </aside>
     </div>
     <p class="note">Photos stay on this device only and are never uploaded.</p>
   </div>

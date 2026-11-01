@@ -1,31 +1,49 @@
 import "./style.css";
+import { createPitchSuggestions } from "./pitch-suggestions";
+import { createAgentBridgeUI } from "./agent-bridge";
+import type { AgentSubmission } from "./agent-bridge";
+import { createRealtimeVoice } from "./realtime-voice";
+import type { VoiceState } from "./realtime-voice";
+import { createReplyPlayer } from "./reply-player";
+import { createCallRoster, playInvestorTurns, validateEvaluation } from "./investor-call";
+import { createOfferChoices } from './offer-choices';
+import type { Evaluation, InvestorRole } from "./investor-call";
+
+/* ---------- Types ---------- */
 
 interface Seed {
+  role: InvestorRole;
   name: string;
   bg: string;
   score: number;
+  photo: string;
 }
 
 interface Panelist extends Seed {
-  start: number;
   el: HTMLElement;
   fill: HTMLElement;
   value: HTMLElement;
   chip: HTMLElement;
+  change: HTMLElement;
+  verdict: HTMLElement;
 }
 
+/* ---------- Config ---------- */
+
 const SEEDS: Seed[] = [
-  { name: "The Closer", bg: "#2b2320", score: 62 },
-  { name: "The Skeptic", bg: "#1f2a36", score: 41 },
-  { name: "The Operator", bg: "#1f2b25", score: 78 },
-  { name: "The Veteran", bg: "#332a1c", score: 55 },
+  { role: "technical_expert", name: "The CTO", bg: "#2b2320", score: 50, photo: "/investors/02_technical_expert_zoom.png" },
+  { role: "market_signals_researcher", name: "The VP", bg: "#1f2a36", score: 50, photo: "/investors/01_market_signals_researcher_zoom.png" },
+  { role: "interrogator", name: "The Interrogator", bg: "#1f2b25", score: 50, photo: "/investors/03_interrogator_zoom.png" },
+  { role: "sympathizer", name: "The Sympathizer", bg: "#332a1c", score: 50, photo: "/investors/04_sympathizer_zoom.png" },
 ];
 
-// Index of who is speaking each turn; -1 means silence.
-const SPEAKING_ORDER: number[] = [-1, 1, 1, 0, -1, 3, 2, 2, -1, 0, 3];
+// The root launcher proxies this same-origin API; never put credentials in VITE variables.
+const API_URL: string = import.meta.env.VITE_API_URL || "/api";
 
-const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
+/* ---------- Helpers ---------- */
+
 const pad = (n: number): string => String(n).padStart(2, "0");
+const signed = (n: number): string => (n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : "\u00b10");
 
 function colorFor(score: number): string {
   if (score < 40) return "#d9544f";
@@ -38,6 +56,29 @@ function must<T extends Element>(root: ParentNode, selector: string): T {
   if (!found) throw new Error(`Missing element: ${selector}`);
   return found;
 }
+
+/* ---------- Scoring ---------- */
+
+async function post(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  let data;
+  try { data = await res.json(); }
+  catch { throw new Error("The investor service is unavailable. Please try again."); }
+  if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : `Request failed (${res.status}).`);
+  return data;
+}
+
+async function evaluate(pitch: string, current: number[], job?: AgentSubmission): Promise<Evaluation> {
+  const raw = await post("/evaluate", { pitch, panelists: SEEDS.map(s => s.name), scores: current, ...(job ? { bridgeJobId: job.id, bridgeAuto: job.automatic } : {}) });
+  return validateEvaluation(raw, SEEDS, current);
+}
+
+/* ---------- Photos ---------- */
 
 const photoKey = (i: number): string => `cp-photo-${i}`;
 
@@ -84,7 +125,7 @@ function cropToTile(file: File, width = 640, height = 360): Promise<string> {
 }
 
 function setPhoto(p: Panelist, url: string | null): void {
-  p.el.style.backgroundImage = url ? `url(${url})` : "none";
+  p.el.style.backgroundImage = url ? `url("${url}")` : "none";
   p.el.classList.toggle("ph", url !== null);
 }
 
@@ -93,26 +134,30 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
   el.className = "t";
   el.style.backgroundColor = seed.bg;
   el.innerHTML = `
-    <div class="rd"><div class="v">0</div><div class="c">confidence</div></div>
-    <div class="chip"></div>
+    <div class="chip" role="meter" aria-label="${seed.name} confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+      <span class="score-label">Confidence</span>
+      <span class="score-line"><strong class="v">50</strong><span class="score-total">/100</span><span class="score-change" hidden></span></span>
+      <span class="score-verdict" hidden></span>
+    </div>
     <div class="ctl">
       <label>Add photo<input type="file" accept="image/*" /></label>
-      <button class="rm" type="button">Remove</button>
+      <button class="rm" type="button">Reset photo</button>
     </div>
     <div class="cb"><span>100</span>
       <div class="tr"><div class="fl"></div>
         <div class="tk" style="top:25%"></div><div class="tk" style="top:50%"></div><div class="tk" style="top:75%"></div>
       </div><span>0</span></div>
-    <div class="nm"><span class="eq"><b></b><b></b><b></b></span>${seed.name}</div>`;
+    <div class="nm"><span class="dot" title="Listening"></span>${seed.name}</div>`;
   grid.appendChild(el);
 
   const panelist: Panelist = {
     ...seed,
-    start: seed.score,
     el,
     fill: must<HTMLElement>(el, ".fl"),
     value: must<HTMLElement>(el, ".v"),
     chip: must<HTMLElement>(el, ".chip"),
+    change: must<HTMLElement>(el, ".score-change"),
+    verdict: must<HTMLElement>(el, ".score-verdict"),
   };
 
   const input = must<HTMLInputElement>(el, "input");
@@ -129,72 +174,353 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
     }
   });
   must<HTMLButtonElement>(el, ".rm").addEventListener("click", () => {
-    setPhoto(panelist, null);
     savePhoto(index, null);
+    setPhoto(panelist, seed.photo);
   });
 
-  const saved = loadPhoto(index);
-  if (saved) setPhoto(panelist, saved);
+  setPhoto(panelist, loadPhoto(index) ?? seed.photo);
   return panelist;
 }
+
+/* ---------- App ---------- */
 
 function main(): void {
   const welcome = must<HTMLElement>(document, "#welcome");
   const app = must<HTMLElement>(document, "#app");
-  must<HTMLButtonElement>(document, "#start").addEventListener("click", () => {
+  const grid = must<HTMLElement>(document, "#grid");
+  const chatbox = must<HTMLElement>(document, "#chatbox");
+  const log = must<HTMLElement>(document, "#log");
+  const form = must<HTMLFormElement>(document, "#form");
+  const promptInput = must<HTMLInputElement>(document, "#prompt");
+  const send = must<HTMLButtonElement>(document, "#send");
+  const statusEl = must<HTMLElement>(document, "#status");
+  const micBtn = must<HTMLButtonElement>(document, "#mic");
+  const camBtn = must<HTMLButtonElement>(document, "#cam");
+  const chatBtn = must<HTMLButtonElement>(document, "#chat");
+  const freezeBtn = must<HTMLButtonElement>(document, "#freeze");
+  const resetBtn = must<HTMLButtonElement>(document, "#reset");
+  const leaveBtn = must<HTMLButtonElement>(document, "#leave");
+  const startBtn = must<HTMLButtonElement>(document, "#start");
+  const replyAudio = must<HTMLAudioElement>(document, "#reply-audio");
+  const skipAudio = must<HTMLButtonElement>(document, "#skip-audio");
+  freezeBtn.hidden = true; // Live confidence is authoritative; do not discard score updates.
+  promptInput.maxLength = 4000;
+
+  const panel = SEEDS.map((seed, i) => buildTile(seed, i, grid));
+  const roster = createCallRoster(panel, grid, must<HTMLElement>(document, '#call-empty'));
+  const restartBtn = must<HTMLButtonElement>(document, '#call-restart');
+  let busy = false;
+  let interim = "";
+  let notice = "";
+  let lastTurn = 0;
+  let pendingOffers: InvestorRole[] = [];
+  let acceptedOffer: InvestorRole | null = null;
+  let epoch = 0;
+  let voiceState: VoiceState = 'off';
+  let audioPlaying = false;
+  let audioGeneration = 0;
+  let bridge: ReturnType<typeof createAgentBridgeUI> | undefined;
+  let suggestions: ReturnType<typeof createPitchSuggestions> | undefined;
+  let offerChoices: ReturnType<typeof createOfferChoices> | undefined;
+  let speakingName = '';
+  const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
+  const setBusy = (value: boolean): void => {
+    busy = value;
+    for (const control of [send, promptInput]) control.disabled = value || roster.empty || pendingOffers.length > 0;
+    startBtn.disabled = restartBtn.disabled = value;
+    resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
+    micBtn.disabled = roster.empty || pendingOffers.length > 0 || (value && voiceState === 'off');
+    bridge?.refresh();
+    suggestions?.refresh();
+    offerChoices?.refresh();
+  };
+  const showSpeaker = (role: InvestorRole | null): void => {
+    panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
+  };
+
+  /* status line */
+  const renderStatus = (): void => {
+    if (roster.empty) statusEl.textContent = 'All investors have left. Reset to try another pitch.';
+    else if (notice) statusEl.textContent = notice;
+    else if (audioPlaying) statusEl.textContent = `${speakingName} is speaking. Your microphone is paused.`;
+    else if (busy) statusEl.textContent = "The panel is deliberating…";
+    else if (pendingOffers.length) statusEl.textContent = 'Choose Accept offer or Decline to continue. Your microphone is paused.';
+    else if (voiceState === 'connecting') statusEl.textContent = 'Connecting live audio… Allow microphone access when asked.';
+    else if (voiceState === 'listening') statusEl.textContent = interim ? `Listening… ${interim}` : 'Listening… Pause briefly when you finish your turn.';
+    else statusEl.textContent = "";
+  };
+  const showNotice = (message: string): void => {
+    notice = message;
+    renderStatus();
+    window.setTimeout(() => {
+      notice = "";
+      renderStatus();
+    }, 6000);
+  };
+
+  /* scores */
+  const draw = (previous?: number[]): void => {
+    panel.forEach((p, i) => {
+      const v = Math.round(p.score);
+      const delta = previous ? v - previous[i] : null;
+      p.fill.style.height = `${v}%`;
+      p.fill.style.backgroundColor = colorFor(v);
+      p.value.textContent = String(v);
+      p.chip.setAttribute('aria-valuenow', String(v));
+      p.chip.setAttribute('aria-valuetext', `${v} out of 100${delta === null ? '' : `, ${signed(delta)} points this turn`}`);
+      p.change.hidden = delta === null;
+      p.change.textContent = delta === null ? '' : signed(delta);
+      p.change.dataset.direction = delta === null || delta === 0 ? 'same' : delta > 0 ? 'up' : 'down';
+      p.verdict.hidden = v !== 0 && v !== 100;
+      p.verdict.textContent = v === 0 ? 'Leaving the call' : v === 100 ? 'Simulated offer' : '';
+    });
+  };
+
+  /* chat log */
+  const addMsg = (classes: string, text: string): void => {
+    const d = document.createElement("div");
+    d.className = `msg ${classes}`;
+    d.textContent = text;
+    log.appendChild(d);
+    while (log.children.length > 60) log.firstElementChild?.remove();
+    log.scrollTop = log.scrollHeight;
+  };
+
+  /* One request at a time; no queued requests can leak into a new pitch. */
+  const judge = async (text: string, job?: AgentSubmission, decision?: { role: InvestorRole; decision: 'accept' | 'decline' }): Promise<void> => {
+    setBusy(true);
+    suggestions?.begin();
+    const current = epoch;
+    const currentAudio = audioGeneration;
+    let bridgeRevision: number | undefined;
+    voice.pause();
+    player.stop();
+    replyAudio.hidden = true;
+    showSpeaker(null);
+    notice = "";
+    renderStatus();
+    try {
+      let before = panel.map(p => p.score);
+      const result = decision
+        ? validateEvaluation(await post('/offer-decision', { ...decision, turn: lastTurn }), SEEDS, before)
+        : await evaluate(text, before, job);
+      if (current !== epoch) return;
+      bridgeRevision = result.bridgeRevision;
+      if (result.turn === 1 && lastTurn > 0) {
+        before = panel.map(() => 50);
+        addMsg("sys", "Your previous session expired. This pitch starts fresh at 50.");
+      }
+      lastTurn = result.turn;
+      pendingOffers = result.pendingOffers;
+      acceptedOffer = result.acceptedOffer;
+      offerChoices?.update(pendingOffers);
+      panel.forEach((p, i) => (p.score = result.scores[i]));
+      roster.begin(result);
+      draw(before);
+      panel.forEach(p => {
+        if (result.departureOrder.includes(p.role)) { p.verdict.hidden = false; p.verdict.textContent = 'Saying goodbye'; }
+      });
+      if (result.departedRoles.length === panel.length) suggestions?.end();
+      else if (pendingOffers.length) suggestions?.offer();
+      else void suggestions?.complete(result.bridgeRevision);
+      addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
+      if (!result.speakingOrder.length) showNotice("The panel is listening.");
+      await playInvestorTurns(result, {
+        current: () => current === epoch,
+        present: reply => {
+          showSpeaker(reply.role);
+          speakingName = reply.panelist;
+          addMsg("investor", `${reply.panelist}: ${reply.reply}`);
+        },
+        play: async role => {
+          if (currentAudio === audioGeneration) {
+            notice = "";
+            audioPlaying = true;
+            skipAudio.hidden = false;
+            setBusy(true);
+            renderStatus();
+            const played = await player.play(`${API_URL}/reply-audio?turn=${result.turn}&role=${role}`);
+            if (current !== epoch) return;
+            if (!played) showNotice('Audio stopped or unavailable. The investor reply is in the chat.');
+          }
+        },
+        depart: async role => {
+          await roster.leave(role);
+          if (current !== epoch) return;
+          addMsg('sys', `${panel.find(p => p.role === role)!.name} left the call.`);
+        },
+      });
+    } catch (err) {
+      if (pendingOffers.length) suggestions?.offer();
+      else suggestions?.failed();
+      offerChoices?.failed();
+      const message = err instanceof Error ? err.message : "The panel couldn't respond.";
+      addMsg("sys", decision ? `${message} Retry the offer decision, or reset if the call expired.` : `${message} Your text is below so you can retry.`);
+      if (!decision) promptInput.value = text;
+      voice.stop();
+    } finally {
+      if (current === epoch) {
+        audioPlaying = false;
+        showSpeaker(null);
+        skipAudio.hidden = true;
+        replyAudio.hidden = true;
+        if (roster.empty) {
+          voice.stop();
+          bridge?.pauseForHuman();
+          app.hidden = true;
+          welcome.hidden = false;
+          startBtn.textContent = acceptedOffer ? 'Offer accepted! Start a new pitch' : 'Call ended. Start a new pitch';
+          window.scrollTo(0, 0);
+        }
+        else if (pendingOffers.length) { voice.pause(); bridge?.pauseForHuman(); }
+        else await bridge?.ready(bridgeRevision);
+        setBusy(false);
+        if (!roster.empty && !pendingOffers.length) voice.resume();
+        renderStatus();
+        if (app.hidden) startBtn.focus();
+        else if (pendingOffers.length) offerChoices?.focus();
+        else promptInput.focus();
+      }
+    }
+  };
+
+  const submit = (raw: string, via: "text" | "voice"): void => {
+    const text = raw.trim();
+    if (!text || busy || app.hidden || roster.empty || pendingOffers.length) return;
+    if (text.length > 4000) { voice.resume(); showNotice("Please keep your pitch under 4,000 characters."); return; }
+    bridge?.pauseForHuman();
+    promptInput.value = "";
+    addMsg(via === "voice" ? "you voice" : "you", text);
+    void judge(text);
+  };
+
+  const voice = createRealtimeVoice({
+    onFinal: (text) => submit(text, "voice"),
+    onInterim: (text) => { interim = text; renderStatus(); },
+    onState: (state) => {
+      voiceState = state;
+      micBtn.classList.toggle("live", state !== 'off');
+      micBtn.setAttribute("aria-pressed", String(state !== 'off'));
+      micBtn.setAttribute("aria-label", state !== 'off' ? 'Stop live audio' : 'Start live audio');
+      panel.forEach(p => p.el.classList.toggle("hear", state === 'listening'));
+      setBusy(busy);
+      renderStatus();
+    },
+    onError: showNotice,
+  }, async signal => {
+    const response = await fetch(`${API_URL}/voice-token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal,
+    });
+    const data = await response.json();
+    if (!response.ok || typeof data.token !== 'string') throw new Error('Voice token unavailable');
+    return data.token;
+  });
+
+  bridge = createAgentBridgeUI(API_URL, {
+    busy: () => busy || roster.empty || pendingOffers.length > 0, active: () => !app.hidden && !roster.empty && !pendingOffers.length,
+    notice: showNotice,
+    submit: async (text, job) => {
+      if (busy || app.hidden || roster.empty || pendingOffers.length) return;
+      addMsg('you agent', text);
+      await judge(text, job);
+    },
+  });
+  offerChoices = createOfferChoices(must<HTMLElement>(document, '#offer-choices'), SEEDS, {
+    busy: () => busy || app.hidden,
+    decide: (role, decision) => {
+      if (busy || app.hidden || !pendingOffers.includes(role)) return;
+      bridge?.pauseForHuman();
+      const text = `I ${decision} ${SEEDS.find(s => s.role === role)!.name}'s offer.`;
+      addMsg('you', text);
+      void judge(text, undefined, { role, decision });
+    },
+  });
+  promptInput.addEventListener('input', () => bridge?.pauseForHuman());
+  micBtn.setAttribute('aria-label', 'Start live audio');
+  micBtn.addEventListener('click', () => {
+    if (voice.enabled) { audioGeneration++; voice.stop(); player.stop(); }
+    else if (!busy && !roster.empty && !pendingOffers.length) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
+  });
+  skipAudio.addEventListener('click', () => player.stop());
+  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); suggestions?.close(); voice.stop(); player.stop(); });
+
+  camBtn.addEventListener("click", () => {
+    const on = camBtn.getAttribute("aria-pressed") !== "true";
+    camBtn.setAttribute("aria-pressed", String(on));
+    camBtn.setAttribute("aria-label", on ? "Hide photos" : "Show photos");
+    app.classList.toggle("photos-off", !on);
+  });
+
+  chatBtn.addEventListener("click", () => {
+    const open = chatBtn.getAttribute("aria-pressed") !== "true";
+    chatBtn.setAttribute("aria-pressed", String(open));
+    chatBtn.setAttribute("aria-label", open ? "Hide chat" : "Show chat");
+    chatbox.hidden = !open;
+    if (open) promptInput.focus();
+  });
+
+  // Evaluation must finish before reset; playing audio can be stopped immediately.
+  const resetSession = async (): Promise<boolean> => {
+    if (busy && !audioPlaying) return false;
+    epoch++;
+    suggestions?.reset();
+    player.stop();
+    replyAudio.hidden = true;
+    skipAudio.hidden = true;
+    audioPlaying = false;
+    setBusy(true);
+    voice.stop();
+    showSpeaker(null);
+    notice = "";
+    renderStatus();
+    try {
+      const result = await post("/reset", {}) as { scores?: unknown; bridgeRevision?: number } | null;
+      if (!result || !Array.isArray(result.scores) || result.scores.length !== 4 || !result.scores.every(s => s === 50)) {
+        throw new Error("The session could not be reset. Please try again.");
+      }
+      bridge?.reset();
+      pendingOffers = []; acceptedOffer = null; offerChoices?.update([]);
+      panel.forEach(p => (p.score = 50));
+      roster.reset();
+      lastTurn = 0;
+      draw();
+      log.replaceChildren();
+      promptInput.value = "";
+      return true;
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : "Couldn't reset the session. Please try again.");
+      if (app.hidden) startBtn.textContent = "Couldn't connect. Click to retry";
+      return false;
+    } finally {
+      setBusy(false);
+      renderStatus();
+    }
+  };
+  resetBtn.addEventListener("click", () => { void resetSession(); });
+  restartBtn.addEventListener('click', () => { void resetSession(); });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    submit(promptInput.value, "text");
+  });
+
+  /* welcome <-> call */
+  startBtn.addEventListener("click", async () => {
+    if (!await resetSession()) return;
+    startBtn.textContent = "Click here to get started";
     welcome.hidden = true;
     app.hidden = false;
     window.scrollTo(0, 0);
+    promptInput.focus();
   });
-  must<HTMLButtonElement>(document, "#leave").addEventListener("click", () => {
+  leaveBtn.addEventListener("click", async () => {
+    if (!await resetSession()) return;
     app.hidden = true;
     welcome.hidden = false;
     window.scrollTo(0, 0);
   });
 
-  const grid = must<HTMLElement>(document, "#grid");
-  const panel = SEEDS.map((seed, i) => buildTile(seed, i, grid));
-  let paused = false;
-  let turn = 0;
-
-  const draw = (): void => {
-    for (const p of panel) {
-      const v = Math.round(p.score);
-      p.fill.style.height = `${v}%`;
-      p.fill.style.backgroundColor = colorFor(v);
-      p.value.textContent = String(v);
-      p.chip.textContent = `Confidence ${v}`;
-    }
-  };
-
-  const nextSpeaker = (): void => {
-    const speaker = SPEAKING_ORDER[turn % SPEAKING_ORDER.length];
-    panel.forEach((p, i) => p.el.classList.toggle("on", i === speaker));
-    turn++;
-  };
-
-  const drift = (): void => {
-    if (paused) return;
-    const speaker = SPEAKING_ORDER[(turn - 1) % SPEAKING_ORDER.length];
-    panel.forEach((p, i) => {
-      const step = i === speaker ? 9 : 3;
-      p.score = clamp(p.score + (Math.random() - 0.5) * step * 2, 5, 98);
-    });
-    draw();
-  };
-
-  const pauseBtn = must<HTMLButtonElement>(document, "#pause");
-  const pauseLabel = must<HTMLElement>(document, "#pause-label");
-  pauseBtn.addEventListener("click", () => {
-    paused = !paused;
-    pauseBtn.setAttribute("aria-pressed", String(paused));
-    pauseLabel.textContent = paused ? "Resume scores" : "Pause scores";
-  });
-  must<HTMLButtonElement>(document, "#reset").addEventListener("click", () => {
-    panel.forEach((p) => (p.score = p.start));
-    draw();
-  });
-
+  /* call timer */
   const timer = must<HTMLElement>(document, "#timer");
   let seconds = 872;
   setInterval(() => {
@@ -202,10 +528,32 @@ function main(): void {
     timer.textContent = `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   }, 1000);
 
-  nextSpeaker();
+  suggestions = createPitchSuggestions(API_URL, {
+    busy: () => busy || roster.empty || pendingOffers.length > 0,
+    attach: text => {
+      if (busy || app.hidden || roster.empty || pendingOffers.length) return;
+      bridge?.pauseForHuman();
+      voice.stop();
+      promptInput.value = text;
+      chatbox.hidden = false;
+      chatBtn.setAttribute('aria-pressed', 'true');
+      chatBtn.setAttribute('aria-label', 'Hide chat');
+      promptInput.focus();
+      showNotice('Added to chat. Edit it or press Send.');
+    },
+  });
+
+  const layout = must<HTMLElement>(document, ".layout");
+  const tipsEl = must<HTMLElement>(document, "#tips");
+  const tipsBtn = must<HTMLButtonElement>(document, "#tipsbtn");
+  tipsBtn.addEventListener("click", () => {
+    const open = tipsBtn.getAttribute("aria-pressed") !== "true";
+    tipsBtn.setAttribute("aria-pressed", String(open));
+    tipsEl.hidden = !open;
+    layout.classList.toggle("no-tips", !open);
+  });
+
   draw();
-  setInterval(nextSpeaker, 3200);
-  setInterval(drift, 1400);
 }
 
 main();

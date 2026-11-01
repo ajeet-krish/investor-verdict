@@ -1,7 +1,7 @@
 import { INVESTORS } from './investors.mjs';
 
 export function interestStatus(score) {
-  return score === 0 ? 'out' : score < 40 ? 'nearly-out' : score < 70 ? 'concerned' : 'engaged';
+  return score === 0 ? 'out' : score === 100 ? 'offered' : score < 40 ? 'nearly-out' : score < 70 ? 'concerned' : 'engaged';
 }
 
 // Create a fresh controller for each pitch. Never reuse handlers from an old call.
@@ -9,7 +9,7 @@ export function createInterestController() {
   let active = true;
   const listeners = new Set();
   const states = new Map(INVESTORS.map(({ key }) => [key, {
-    key, confidence: 100, turn_number: 0, status: 'engaged',
+    key, confidence: 50, turn_number: 0, status: 'concerned',
     reason: 'Ready to hear your pitch.',
   }]));
   const snapshot = () => [...states.values()].map(state => ({ ...state }));
@@ -29,13 +29,12 @@ export function createInterestController() {
         }
         // Network retries and late events cannot deduct points twice.
         if (payload.turn_number <= state.turn_number) return result(false, 'Duplicate or stale turn.');
-        if (state.confidence === 0) return result(false, 'This investor is already out.');
+        if (state.confidence === 0 || state.confidence === 100) return result(false, 'This investor has reached a final verdict.');
         if (payload.turn_number !== state.turn_number + 1) return result(false, 'Use next_turn_number.');
         if (!Number.isInteger(payload.confidence) || payload.confidence < 0 || payload.confidence > 100) {
           return result(false, 'confidence must be an integer from 0 to 100.');
         }
-        if (payload.confidence > state.confidence) return result(false, 'Confidence cannot increase.');
-        if (state.confidence - payload.confidence > 20) return result(false, 'Maximum loss is 20 per turn.');
+        if (Math.abs(state.confidence - payload.confidence) > 20) return result(false, 'Maximum change is 20 per turn.');
         if (typeof payload.reason !== 'string' || !payload.reason.trim() || payload.reason.length > 500) {
           return result(false, 'Provide a brief reason, between 1 and 500 characters.');
         }
@@ -46,7 +45,7 @@ export function createInterestController() {
           reason: payload.reason.trim(),
           status: interestStatus(payload.confidence),
         });
-        const event = { investor: { ...state }, left: state.confidence === 0 };
+        const event = { investor: { ...state }, left: state.confidence === 0, offered: state.confidence === 100 };
         for (const listener of listeners) {
           try { listener(snapshot(), event); }
           catch (error) { console.error('Investor display listener failed', error); }

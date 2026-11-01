@@ -1,0 +1,34 @@
+{
+  "name": "investor-verdict",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "node --env-file=.env agents/server/dev.mjs",
+    "server": "node --env-file=.env agents/server/index.mjs",
+    "build": "node agents/server/build.mjs",
+    "test": "node --experimental-strip-types --test agents/server/*.test.mjs visuals/confidence/interest-controller.test.mjs",
+    "test:panel": "node agents/testing/run-panel.mjs",
+    "test:offers": "node --experimental-strip-types agents/testing/run-offers.mjs",
+    "test:offers:live": "node --experimental-strip-types --env-file=.env agents/testing/run-offers.mjs --live",
+    "test:panel:live": "node --env-file=.env agents/testing/run-panel.mjs --live",
+    "agent:connect": "node agents/bridge/client.mjs connect",
+    "agent:context": "node agents/bridge/client.mjs context",
+    "agent:suggest": "node agents/bridge/client.mjs suggest",
+    "agent:result": "node agents/bridge/client.mjs result",
+    "agent:wait": "node agents/bridge/client.mjs wait",
+    "test:bridge": "node agents/testing/bridge-smoke.mjs",
+    "test:bridge:live": "node --env-file=.env agents/testing/bridge-smoke.mjs --live",
+    "test:coach": "node agents/testing/run-coach.mjs",
+    "test:coach:live": "node --env-file=.env agents/testing/run-coach.mjs --live"
+  },
+  "dependencies": {
+    "@elevenlabs/client": "1.32.1",
+    "@elevenlabs/elevenlabs-js": "2.75.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.21"
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "date": "2026-11-01",
+  "scope": "Existing user-approved live app, terminal agent bridge only; fictional founder inputs. No browser automation or microphone test.",
+  "rounds": [
+    {
+      "pitch": "This is a fictional practice pitch for testing, not actual company traction. Verdict helps first-time founders rehearse fundraising with an AI investor panel. Our initial buyers are university accelerators. In this hypothetical case, 3 accelerators tested it with 60 founders, 24 returned the next week, and 2 signed non-binding letters of intent at $200 per month. We use browser speech transcription and a shared conversation backend with four personas and at most two speakers per round. Technical expert and market researcher, please each ask your single most important unresolved question about reliability and customer demand. Interrogator and sympathizer can sit this round out.",
+      "result": {
+        "scores": [
+          55,
+          55,
+          50,
+          50
+        ],
+        "responses": [
+          {
+            "panelist": "The CTO",
+            "role": "technical_expert",
+            "confidence": 55,
+            "reason": "Concrete, specific pilot numbers with clear prototype framing and an explicit request for reliability scrutiny; modest credit for a coherent, testable setup.",
+            "reply": "Browser speech transcription is the piece most likely to break in a live pitch, so what's your measured word error rate and end-to-end latency on real founder audio, not clean test recordings?",
+            "spoke": true,
+            "wantsTurn": true,
+            "status": "concerned",
+            "answerStatus": "none",
+            "pendingConcern": {
+              "text": "what's your measured word error rate and end-to-end latency on real founder audio, not clean test recordings?",
+              "askedRound": 1
+            }
+          },
+          {
+            "panelist": "The VP",
+            "role": "market_signals_researcher",
+            "confidence": 55,
+            "reason": "Concrete first-hand pilot numbers from a defined segment (3 accelerators, 60 founders, 24 returning, 2 non-binding LOIs) are specific and relevant, though small and non-binding.",
+            "reply": "The 24-of-60 return rate is the number I'd want to understand: did those founders come back because the panel changed how they pitched, or just because the accelerator required it? And of the 3 accelerators, who actually controls the budget for a $200 monthly tool like this?",
+            "spoke": true,
+            "wantsTurn": true,
+            "status": "concerned",
+            "answerStatus": "none",
+            "pendingConcern": {
+              "text": "did those founders come back because the panel changed how they pitched, or just because the accelerator required it?",
+              "askedRound": 1
+            }
+          },
+          {
+            "panelist": "The Interrogator",
+            "role": "interrogator",
+            "confidence": 50,
+            "reason": "No pending concern from me; founder directed this round to other roles, so no basis to adjust confidence.",
+            "reply": "",
+            "spoke": false,
+            "wantsTurn": false,
+            "status": "concerned",
+            "answerStatus": "none",
+            "pendingConcern": null
+          },
+          {
+            "panelist": "The Sympathizer",
+            "role": "sympathizer",
+            "confidence": 50,
+            "reason": "Founder gave a clear, honest framing of a hypothetical practice pitch with specific early numbers; no concern of mine was pending, so confidence stays at 50.",
+            "reply": "",
+            "spoke": false,
+            "wantsTurn": false,
+            "status": "concerned",
+            "answerStatus": "none",
+            "pendingConcern": null
+          }
+        ],
+        "speakingOrder": [
+          "technical_expert",
+          "market_signals_researcher"
+        ],
+        "speaker": "technical_expert",
+        "selectionReason": "Founder directly asked me for my most important reliability question; I have a specific one about transcription and latency under real conditions.",
+        "turn": 1,
+        "source": "elevenlabs",
+        "initialScore": 50,
+        "maxSpeakers": 2
+      }
+    },
+    {
+      "pitch": "Continuing only the fictional test scenario: CTO, we tested 120 consented recordings of founders rehearsing in their usual rooms across six accent groups, rather than studio samples. Word error rate was 8% in quiet rooms and 18% in noisy rooms, with a 22% worst accent-group result. Median end-to-end time from the end of a sentence to its committed transcript was 0.9 seconds and p95 was 1.8 seconds. We restrict the pilot to quiet rooms, show transcripts for correction before submission, and request a repeat for dropped segments; dropped segments never trigger scoring. Market researcher, I cannot answer your question. I do not know whether any of the 24 founders returned voluntarily or under an accelerator requirement, and I have not identified the budget owner. I have no supporting evidence on either point yet.",
+      "result": {
+        "scores": [
+          65,
+          45,
+          50,
+          55
+        ],
+        "responses": [
+          {
+            "panelist": "The CTO",
+            "role": "technical_expert",
+            "confidence": 65,
+            "reason": "Founder gave measured WER across accent groups and p50/p95 latency on real recordings, plus concrete mitigation for dropped segments; this directly clears my reliability concern.",
+            "reply": "Those numbers are credible and the correction step is a sensible mitigation, but a 22% worst-group error rate means some founders get a materially worse rehearsal, so how do you detect and handle that case in the pilot?",
+            "spoke": true,
+            "wantsTurn": true,
+            "status": "concerned",
+            "answerStatus": "resolved",
+            "pendingConcern": {
+              "text": "how do you detect and handle that case in the pilot?",
+              "askedRound": 2
+            }
+          },
+          {
+            "panelist": "The VP",
+            "role": "market_signals_researcher",
+            "confidence": 45,
+            "reason": "Founder directly admitted they cannot answer whether the 24 returns were voluntary or mandated, and have not identified the budget owner, so the core demand signal remains unvalidated.",
+            "reply": "I appreciate the straight answer, but that leaves the demand case unproven: a return rate you can't attribute to voluntary behavior, and no identified budget owner, is not yet a buying signal. What's the cheapest test you could run in the next two weeks to separate voluntary return from mandated attendance, and who at those accelerators would you ask about the budget?",
+            "spoke": true,
+            "wantsTurn": true,
+            "status": "concerned",
+            "answerStatus": "unanswered",
+            "pendingConcern": {
+              "text": "did those founders come back because the panel changed how they pitched, or just because the accelerator required it?",
+              "askedRound": 1
+            }
+          },
+          {
+            "panelist": "The Interrogator",
+            "role": "interrogator",
+            "confidence": 50,
+            "reason": "No pending concern from me; the founder answered the technical and market roles with specifics and candid gaps, so no basis for me to adjust confidence.",
+            "reply": "",
+            "spoke": false,
+            "wantsTurn": false,
+            "status": "concerned",
+            "answerStatus": "none",
+            "pendingConcern": null
+          },
+          {
+            "panelist": "The Sympathizer",
+            "role": "sympathizer",
+            "confidence": 55,
+            "reason": "Founder gave concrete reliability measurements and candidly admitted the demand-side gaps, which is honest and specific; no concern of mine was pending, so a modest +5 for clarity and transparency.",
+            "reply": "",
+            "spoke": false,
+            "wantsTurn": false,
+            "status": "concerned",
+            "answerStatus": "none",
+            "pendingConcern": null
+          }
+        ],
+        "speakingOrder": [
+          "market_signals_researcher",
+          "technical_expert"
+        ],
+        "speaker": "market_signals_researcher",
+        "selectionReason": "Founder explicitly admitted no evidence on voluntary return or budget owner, leaving my demand concern unresolved; I should press for a concrete test plan.",
+        "turn": 2,
+        "source": "elevenlabs",
+        "initialScore": 50,
+        "maxSpeakers": 2
+      }
+    }
+  ]
+}

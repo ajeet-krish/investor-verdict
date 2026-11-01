@@ -1,0 +1,297 @@
+{
+  "mode": "live",
+  "at": "2026-11-01T21:17:12.197Z",
+  "rounds": [
+    {
+      "event": "pitch",
+      "scores": [
+        60,
+        60,
+        60,
+        60
+      ],
+      "speakingOrder": [
+        "market_signals_researcher",
+        "interrogator"
+      ],
+      "offerOrder": [],
+      "pendingOffers": [],
+      "departureOrder": [],
+      "gameOver": false,
+      "acceptedOffer": null,
+      "responses": [
+        {
+          "role": "market_signals_researcher",
+          "reply": "Forty paying shops is a real start. How did those first shops find you, and why do they stay?"
+        },
+        {
+          "role": "interrogator",
+          "reply": "Good start. How many of those forty shops have renewed after their first month?"
+        }
+      ],
+      "audio": [
+        {
+          "role": "market_signals_researcher",
+          "bytes": 102861
+        },
+        {
+          "role": "interrogator",
+          "bytes": 86561
+        }
+      ]
+    },
+    {
+      "event": "pitch",
+      "scores": [
+        70,
+        50,
+        75,
+        75
+      ],
+      "speakingOrder": [
+        "market_signals_researcher",
+        "interrogator"
+      ],
+      "offerOrder": [],
+      "pendingOffers": [],
+      "departureOrder": [],
+      "gameOver": false,
+      "acceptedOffer": null,
+      "responses": [
+        {
+          "role": "market_signals_researcher",
+          "reply": "The retention numbers are encouraging. But I still don't know how those first shops found you."
+        },
+        {
+          "role": "interrogator",
+          "reply": "That's solid retention. What's the main reason the few shops that left gave?"
+        }
+      ],
+      "audio": [
+        {
+          "role": "market_signals_researcher",
+          "bytes": 87815
+        },
+        {
+          "role": "interrogator",
+          "bytes": 86561
+        }
+      ]
+    },
+    {
+      "event": "pitch",
+      "scores": [
+        80,
+        35,
+        60,
+        85
+      ],
+      "speakingOrder": [
+        "market_signals_researcher",
+        "interrogator"
+      ],
+      "offerOrder": [],
+      "pendingOffers": [],
+      "departureOrder": [],
+      "gameOver": false,
+      "acceptedOffer": null,
+      "responses": [
+        {
+          "role": "market_signals_researcher",
+          "reply": "Those numbers are strong, but I've asked twice how shops find you. Where does that $42 acquisition cost come from?"
+        },
+        {
+          "role": "interrogator",
+          "reply": "I still need the churn reason. What did the two shops that left actually say?"
+        }
+      ],
+      "audio": [
+        {
+          "role": "market_signals_researcher",
+          "bytes": 126267
+        },
+        {
+          "role": "interrogator",
+          "bytes": 79874
+        }
+      ]
+    },
+    {
+      "event": "pitch",
+      "scores": [
+        90,
+        20,
+        45,
+        95
+      ],
+      "speakingOrder": [
+        "market_signals_researcher",
+        "interrogator"
+      ],
+      "offerOrder": [],
+      "pendingOffers": [],
+      "departureOrder": [],
+      "gameOver": false,
+      "acceptedOffer": null,
+      "responses": [
+        {
+          "role": "market_signals_researcher",
+          "reply": "Referrals are a real signal, but three times now I've asked how shops find you. Just name the channel."
+        },
+        {
+          "role": "interrogator",
+          "reply": "Third time asking: what reason did the shops that left give?"
+        }
+      ],
+      "audio": [
+        {
+          "role": "market_signals_researcher",
+          "bytes": 110803
+        },
+        {
+          "role": "interrogator",
+          "bytes": 71097
+        }
+      ]
+    },
+    {
+      "event": "pitch",
+      "scores": [
+        100,
+        0,
+        30,
+        100
+      ],
+      "speakingOrder": [
+        "market_signals_researcher",
+        "technical_expert",
+        "sympathizer",
+        "interrogator"
+      ],
+      "offerOrder": [
+        "technical_expert",
+        "sympathizer"
+      ],
+      "pendingOffers": [
+        "technical_expert",
+        "sympathizer"
+      ],
+      "departureOrder": [
+        "market_signals_researcher"
+      ],
+      "gameOver": false,
+      "acceptedOffer": null,
+      "responses": [
+        {
+          "role": "technical_expert",
+          "reply": "The engineering holds up: validation checks, tested recovery, a clean security review, and reproducible time savings. This is a simulated offer to invest, so please use Accept or Decline."
+        },
+        {
+          "role": "market_signals_researcher",
+          "reply": "Four times I asked how shops find you and never got a channel. That's why I'm passing and leaving the call."
+        },
+        {
+          "role": "interrogator",
+          "reply": "I'll ask once more, plainly: what did the churned shops say when they left?"
+        },
+        {
+          "role": "sympathizer",
+          "reply": "I'm convinced by the honest, reproducible evidence and how steadily you've learned from customers. In this simulation, I'd like to invest, so please use Accept or Decline."
+        }
+      ],
+      "audio": [
+        {
+          "role": "market_signals_researcher",
+          "bytes": 112057
+        },
+        {
+          "role": "technical_expert",
+          "bytes": 202754
+        },
+        {
+          "role": "sympathizer",
+          "bytes": 181020
+        },
+        {
+          "role": "interrogator",
+          "bytes": 82381
+        }
+      ]
+    },
+    {
+      "event": "offer-declined",
+      "scores": [
+        100,
+        0,
+        30,
+        100
+      ],
+      "speakingOrder": [
+        "technical_expert"
+      ],
+      "offerOrder": [],
+      "pendingOffers": [
+        "sympathizer"
+      ],
+      "departureOrder": [
+        "technical_expert"
+      ],
+      "gameOver": false,
+      "acceptedOffer": null,
+      "responses": [
+        {
+          "role": "technical_expert",
+          "reply": "Understood, and no hard feelings. Thanks for the clear walkthrough of the build, and best of luck with ShopLedger. I'm leaving the call."
+        }
+      ],
+      "audio": [
+        {
+          "role": "technical_expert",
+          "bytes": 130029
+        }
+      ]
+    },
+    {
+      "event": "offer-accepted",
+      "scores": [
+        100,
+        0,
+        30,
+        100
+      ],
+      "speakingOrder": [
+        "sympathizer",
+        "interrogator"
+      ],
+      "offerOrder": [],
+      "pendingOffers": [],
+      "departureOrder": [
+        "sympathizer",
+        "interrogator"
+      ],
+      "gameOver": true,
+      "acceptedOffer": "sympathizer",
+      "responses": [
+        {
+          "role": "interrogator",
+          "reply": "Good luck with ShopLedger. My one parting note: find out why customers leave before you scale."
+        },
+        {
+          "role": "sympathizer",
+          "reply": "Thank you, I'm glad to be part of this. Keep listening to your customers and good luck with ShopLedger."
+        }
+      ],
+      "audio": [
+        {
+          "role": "sympathizer",
+          "bytes": 100354
+        },
+        {
+          "role": "interrogator",
+          "bytes": 112057
+        }
+      ]
+    }
+  ],
+  "passed": true
+}

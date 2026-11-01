@@ -1,0 +1,97 @@
+{
+  "at": "2026-11-01T19:30:31.794Z",
+  "live": true,
+  "passed": true,
+  "checks": [
+    "one initial browser approval",
+    "CLI context sees current concerns",
+    "CLI draft reaches owner browser",
+    "same investor session returns turn 2",
+    "both concerns resolved",
+    "real panel result returned to CLI"
+  ],
+  "firstScores": [
+    50,
+    50,
+    50,
+    50
+  ],
+  "result": {
+    "scores": [
+      60,
+      60,
+      50,
+      50
+    ],
+    "responses": [
+      {
+        "panelist": "The CTO",
+        "role": "technical_expert",
+        "confidence": 60,
+        "reason": "Founder described concrete validation behavior, a review queue, human review and a 200-file replay with zero corrupt reports, which directly clears my import-reliability concern.",
+        "reply": "Thanks, that's clear: strict schema validation, a review queue rather than silent imports, and a 200-file replay with zero corrupt reports addresses my reliability concern.",
+        "spoke": true,
+        "wantsTurn": true,
+        "status": "concerned",
+        "answerStatus": "resolved",
+        "pendingConcern": null
+      },
+      {
+        "panelist": "The VP",
+        "role": "market_signals_researcher",
+        "confidence": 60,
+        "reason": "Founder gave specific first-hand demand evidence: 12 shops paying from own budgets, 10 of 12 using the report weekly for four consecutive weeks, and 8 documented stock-order changes.",
+        "reply": "Thanks, that's the demand evidence I wanted: 10 of 12 paying shops using it weekly for four straight weeks, with eight changing a stock order, is real behavioral proof rather than a setup spike.",
+        "spoke": true,
+        "wantsTurn": true,
+        "status": "concerned",
+        "answerStatus": "resolved",
+        "pendingConcern": null
+      },
+      {
+        "panelist": "The Interrogator",
+        "role": "interrogator",
+        "confidence": 50,
+        "reason": "No pending concern of mine; the founder supplied specific validation and usage evidence to others, which is not my question to score.",
+        "reply": "",
+        "spoke": false,
+        "wantsTurn": false,
+        "status": "concerned",
+        "answerStatus": "none",
+        "pendingConcern": null
+      },
+      {
+        "panelist": "The Sympathizer",
+        "role": "sympathizer",
+        "confidence": 50,
+        "reason": "No pending concern from me; the founder's answers were directed to other investors and I was asked to sit out.",
+        "reply": "",
+        "spoke": false,
+        "wantsTurn": false,
+        "status": "concerned",
+        "answerStatus": "none",
+        "pendingConcern": null
+      }
+    ],
+    "speakingOrder": [
+      "technical_expert",
+      "market_signals_researcher"
+    ],
+    "speaker": "technical_expert",
+    "selectionReason": "My import-reliability concern was answered with specific validation behavior and a 200-file replay result; brief acknowledgment is warranted.",
+    "turn": 2,
+    "source": "elevenlabs",
+    "initialScore": 50,
+    "maxSpeakers": 2
+  },
+  "audio": [
+    {
+      "role": "technical_expert",
+      "bytes": 182274
+    },
+    {
+      "role": "market_signals_researcher",
+      "bytes": 200246
+    }
+  ]
+}

@@ -1,5 +1,28 @@
 # investor-verdict
 
+## ElevenLabs setup and key handoff
+Read [agents/ELEVENLABS_SETUP.md](agents/ELEVENLABS_SETUP.md) for the configured agents, app branches, voice pipeline, startup and tests. When the user requests their ElevenLabs key, follow its local clipboard handoff: read the ignored `.env`, pipe only `ELEVENLABS_API_KEY` to the user's local clipboard without printing it, and keep storage private. If local clipboard access is unavailable, give the documented local/manual steps. A cloud clipboard is not the user's clipboard. Never commit the key or substitute a live-app connection token for it.
+
+## Starter pitches and transcript-based follow-ups
+The right sidebar starts with three hardcoded fictional product pitches (PantryPal, BorrowBox, StudySprint). Their fixed scenario facts live in `agents/server/practice-cases.mjs`: named fictional interviewees, counts, prices, paid pilot results, technical limits, costs and next steps. The server pins the chosen case to the call so it survives transcript truncation; Reset clears it. Use these supplied facts consistently for roleplay, never as claims about real people or businesses. Unknown facts should produce a complete admission and next step, not placeholders.
+
+After a completed investor round, `pitch-suggestions.ts` requests three cards from OpenAI `gpt-6.1-terra` with `reasoning.effort: medium`, based on the sent founder text, actual investor replies and fixed case facts. The older `reply-coach.ts` editor is not used. Selecting a card fills the main chat without sending. There is no separate sidebar chat or editable field. Keep credentials server-side and reject stale or unfinished suggestions. See [the current handoff](agents/FRONTEND_HANDOFF.md).
+
+## Coding agents in the live app
+Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.
+
+## Current integration
+The user authorized merging `test/investor-integration` into `main` on November 1, 2026. The current implementation includes the Working_MVP layout, visible confidence scores, real-time founder transcription, sequential investor speech and the coding-agent bridge. Read [agents/FRONTEND_HANDOFF.md](agents/FRONTEND_HANDOFF.md) and [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md). The Render adapter includes the offer and coaching endpoints and passed local route checks; the hosted deployment has not been verified.
+
+Investor replies use plain language, usually 10-20 words and one simple question, aiming for under roughly 10 seconds per investor without a hard audio cutoff. These prompts are saved on the isolated ElevenLabs branches in `agents/panel-test-branches.json`; provider main prompts and default traffic remain unchanged.
+
+## Two-investor rounds and testing
+Read [docs/TWO_INVESTOR_ROUNDS.md](docs/TWO_INVESTOR_ROUNDS.md). The latest rule is at most two ordinary replies, plus mandatory farewells for EVERY investor newly reaching zero and mandatory offers for EVERY investor newly reaching 100, then the founder answers; each investor evaluates its own pending concern. Incomplete answers deduct at least 10 and unanswered concerns at least 15, once per substantive message. Meaningful gains/losses have a 10-point minimum, bounded to 20 and the 0-100 endpoints; neutral evidence and pauses do not change confidence. Invalid completed assessments receive one correction request for the same turn, then that investor abstains with unchanged score and preserved concern. Other investors continue. Zero-confidence farewells and 100-confidence offers have priority, even for pass bids, and never consume ordinary reply slots. Offers pause founder input for a human Accept/Decline decision. Decline closes only that investor; acceptance ends the game after the chosen investor and every other remaining investor say goodbye. Frontend tiles play a brief collapse/dissolve after each farewell finishes or is skipped. The call stage keeps a fixed responsive aspect ratio while remaining tiles reflow; after the last farewell and exit effect finish, the founder automatically leaves too and returns to the welcome screen. Starting a new pitch resets the call. Never reinstate a four-speaker ordinary loop.
+Use `npm test` and `npm run test:panel` for free deterministic checks. `npm run test:panel:live` explicitly uses credits and isolated ElevenLabs test branches configured in `agents/panel-test-branches.json`. The runner exercises actual HTTP sessions without computer use. Do not change agent main prompts or default traffic when testing.
+
+## Historical baseline
+[docs/SETUP_HANDOFF.md](docs/SETUP_HANDOFF.md) describes the earlier text-only release. Its single-speaker and missing-audio statements are historical. Current behavior: zero to two ordinary replies plus all newly-zero investors' farewells, one voice at a time, with dynamic selection and optional silence. Scores start at 50 and can rise or fall. Earlier fixed-order and start-at-100 instructions are superseded.
+
 ## Quick Commands
 * Clone: `git clone <repo url>`
 * New branch: `git checkout -b feat/frontend/task`
@@ -32,3 +55,7 @@
 * Research: [docs/research.md](docs/research.md)
 * Reviews: [docs/reviews.md](docs/reviews.md)
 * Tests: [docs/tests.md](docs/tests.md)
+
+
+## Investment offer decisions
+`POST /api/offer-decision` uses the live call cookie and `{role, decision: "accept" | "decline", turn}`. Never use an agent token to make the human's decision. Read `pendingOffers`, `offerOrder`, `gameOver`, `acceptedOffer` and `event` in results. Decisions do not rescore and produce a new turn for authenticated audio. Use `npm run test:offers -- --audio` for a free terminal-only flow; `test:offers:live` explicitly spends credits in an isolated synthetic call. Do not send test pitches to the user's live room.

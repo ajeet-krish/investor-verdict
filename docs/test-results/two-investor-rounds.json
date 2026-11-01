@@ -1,0 +1,566 @@
+{
+  "date": "2026-11-01",
+  "branch": "test/investor-integration",
+  "mode": "live",
+  "synthetic_inputs_only": true,
+  "model": "deepseek-v41-flash",
+  "scenarios": [
+    {
+      "name": "both",
+      "passed": true,
+      "turns": [
+        {
+          "turn": 1,
+          "pitch": "Fictional test: we sell $49 monthly reporting software to repair shops. Technical Expert, please ask how we reject malformed spreadsheet imports. Market Researcher, please ask how many paying shops use the report weekly. Interrogator and Sympathizer, please sit out this round.",
+          "speakingOrder": [
+            "market_signals_researcher",
+            "technical_expert"
+          ],
+          "scores": [
+            50,
+            50,
+            50,
+            50
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "what specifically happens to a malformed file today, and how do you detect the bad rows before they reach the report?",
+                "askedRound": 1
+              },
+              "reason": "No prior concern; founder explicitly requested my question on import validation.",
+              "reply": "Thanks for the direct ask. When a shop uploads a spreadsheet, what specifically happens to a malformed file today, and how do you detect the bad rows before they reach the report?"
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "of your paying repair shops, how many actually open the report at least once a week, and how do you know that number?",
+                "askedRound": 1
+              },
+              "reason": "No pending concern; this is a setup message directing questions, not new demand evidence to score.",
+              "reply": "You asked me to probe weekly usage, so let's start there: of your paying repair shops, how many actually open the report at least once a week, and how do you know that number?"
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern and the founder directed me to sit out, so no basis to adjust confidence.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern and the founder directed my role to sit out; no basis for a confidence change.",
+              "reply": ""
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "pitch": "For the Technical Expert: import validation requires the exact column schema, ISO dates and numeric totals; malformed rows are rejected into a review queue, never silently imported. We replayed 200 malformed files and rejected all 200, with zero corrupt reports. A staff member reviews every failed import and the owner confirms the preview before release. For the Market Researcher: 12 independent repair shops paid $49 from their own budgets last month. Event logs show 10 of those 12 opened and used the report every week for four consecutive weeks, and eight documented a stock order changed using it. The denominator is all 12 paying shops, excluding staff and free trials. Those are my answers to both questions. Please acknowledge briefly without asking a new question.",
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "scores": [
+            60,
+            60,
+            50,
+            50
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Concrete validation design plus a 200 malformed-file replay with zero corrupt reports directly clears my reliability concern.",
+              "reply": "That's clear: strict schema and date checks, a review queue rather than silent imports, and a 200-file replay with zero corrupt reports is solid evidence for the reliability question. Noted, and I'll hold further questions for now."
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Founder gave specific weekly usage (10 of 12 paying shops, four consecutive weeks) with a clear denominator and event-log basis, plus documented behavior change.",
+              "reply": "Acknowledged: 10 of 12 paying shops using the report weekly for four straight weeks, with eight changing a stock order, is credible early retention evidence on a clear denominator. Noted, no new question."
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern of mine; founder directed me to sit out and asked for no new questions, so no basis to adjust confidence.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern of mine; the founder answered other investors' questions and explicitly asked me to sit out, so no basis for a change.",
+              "reply": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "one",
+      "passed": true,
+      "turns": [
+        {
+          "turn": 1,
+          "pitch": "Fictional test: we sell $49 monthly reporting software to repair shops. Technical Expert, please ask how we reject malformed spreadsheet imports. Market Researcher, please ask how many paying shops use the report weekly. Interrogator and Sympathizer, please sit out this round.",
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "scores": [
+            50,
+            50,
+            50,
+            50
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "what actually happens today when a shop uploads a spreadsheet with the wrong columns or bad dates: what gets rejected, what gets silently accepted, and how the user finds out?",
+                "askedRound": 1
+              },
+              "reason": "No pending concern; the founder's message is a request for a specific technical question, not new evidence to score.",
+              "reply": "Thanks \u2014 on imports, walk me through what actually happens today when a shop uploads a spreadsheet with the wrong columns or bad dates: what gets rejected, what gets silently accepted, and how the user finds out?"
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "Of your paying shops, how many actually open the report weekly, and how do you know \u2014 is that from login data or just their word?",
+                "askedRound": 1
+              },
+              "reason": "No pending concern; this is a test instruction directing me to ask about weekly usage, so no evidence to score yet.",
+              "reply": "Happy to dig into demand. Of your paying shops, how many actually open the report weekly, and how do you know \u2014 is that from login data or just their word?"
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern and the founder directed this round's questions to other roles, so no basis to adjust confidence.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern and the founder requested I sit out, so no evidence-based adjustment applies.",
+              "reply": ""
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "pitch": "For the Technical Expert: import validation requires the exact column schema, ISO dates and numeric totals; malformed rows are rejected into a review queue, never silently imported. We replayed 200 malformed files and rejected all 200, with zero corrupt reports. A staff member reviews every failed import and the owner confirms the preview before release. I have no answer to the Market Researcher's usage question. My answer is finished.",
+          "speakingOrder": [
+            "market_signals_researcher",
+            "interrogator"
+          ],
+          "scores": [
+            60,
+            40,
+            55,
+            50
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Founder gave a concrete validation design plus a 200-file malformed replay with zero corrupt reports, directly clearing my reliability concern.",
+              "reply": ""
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "unanswered",
+              "pendingConcern": {
+                "text": "Of your paying shops, how many actually open the report weekly, and how do you know \u2014 is that from login data or just their word?",
+                "askedRound": 1
+              },
+              "reason": "The founder directly said he has no answer to how many paying shops use the report weekly, so my central demand-validation concern remains entirely unresolved.",
+              "reply": "Understood that you don't have the usage number yet \u2014 that's the one thing I most need, since weekly engagement is what separates a real habit from a churned subscription. Can you pull it from your billing or login data before our next call, even a rough count of shops active in the last seven days?"
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "What is your gross margin per shop once onboarding and support time are included?",
+                "askedRound": 2
+              },
+              "reason": "Concrete, testable validation evidence (200 malformed files replayed, all rejected, human review plus owner preview) is a relevant answer to the technical concern, though it is self-reported and unverified.",
+              "reply": "The import controls sound credible, but at $49 a month I still don't know what it costs you to onboard and support a shop, so I can't tell whether that price is a business or a subsidy. What is your gross margin per shop once onboarding and support time are included?"
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern of mine; the import evidence is strong but the usage gap is the other investor's question, so I make no adjustment and only probe the customer-value angle.",
+              "reply": ""
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "pitch": "For the Market Researcher: 12 independent repair shops paid $49 from their own budgets last month. Event logs show 10 of those 12 opened and used the report every week for four consecutive weeks, and eight documented a stock order changed using it. The denominator is all 12 paying shops, excluding staff and free trials. That addresses the outstanding usage question. Please acknowledge without adding a new question.",
+          "speakingOrder": [
+            "interrogator",
+            "market_signals_researcher"
+          ],
+          "scores": [
+            60,
+            50,
+            45,
+            60
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern of mine; the founder's usage data answers another investor's question and I have nothing new in my area to add.",
+              "reply": ""
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Founder gave specific first-hand evidence: 12 paying shops, 10 using the report weekly for four straight weeks, 8 with documented stock-order changes, with a clear denominator.",
+              "reply": "That's exactly the evidence I wanted \u2014 10 of 12 shops using it weekly for four straight weeks, with eight changing a stock order off the report, is a real behavioral signal, not just a login count. Acknowledged, and I'll hold my questions for now."
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "unanswered",
+              "pendingConcern": {
+                "text": "What is your gross margin per shop once onboarding and support time are included?",
+                "askedRound": 2
+              },
+              "reason": "The founder addressed the usage question but did not answer my direct question about gross margin per shop including onboarding and support costs, leaving the unit economics unresolved.",
+              "reply": "I'll note the usage numbers, but my question from last round is still open: I asked what your gross margin per shop is once onboarding and support time are included, and that went unanswered. Can you give me that cost per shop, even a rough figure?"
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "Concrete, specific engagement evidence: 10 of 12 paying shops used the report weekly for four weeks and eight changed a stock order, which credibly supports real customer value.",
+              "reply": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "neither",
+      "passed": true,
+      "turns": [
+        {
+          "turn": 1,
+          "pitch": "Fictional test: we sell $49 monthly reporting software to repair shops. Technical Expert, please ask how we reject malformed spreadsheet imports. Market Researcher, please ask how many paying shops use the report weekly. Interrogator and Sympathizer, please sit out this round.",
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "scores": [
+            50,
+            50,
+            50,
+            50
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "how do you detect and reject malformed rows today, and what happens to the rest of the file when one row fails?",
+                "askedRound": 1
+              },
+              "reason": "No pending concern; the founder explicitly requested my technical question, so no evidence to score yet.",
+              "reply": "Happy to. When a shop uploads a spreadsheet, how do you detect and reject malformed rows today, and what happens to the rest of the file when one row fails?"
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "Of your paying shops, how many actually open the weekly report, and how do you know?",
+                "askedRound": 1
+              },
+              "reason": "No pending concern; this is an opening pitch with a direct request for my demand question, so no evidence to score yet.",
+              "reply": "Of your paying shops, how many actually open the weekly report, and how do you know? I'd also like to hear which segment feels the pain most urgently."
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern and the founder directed my role to sit out; no new evidence in my area to judge.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "No pending concern and the founder directed my role to sit out; no basis for a confidence change.",
+              "reply": ""
+            }
+          ],
+          "audio": [
+            {
+              "role": "technical_expert",
+              "bytes": 161794
+            },
+            {
+              "role": "market_signals_researcher",
+              "bytes": 159286
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "pitch": "I am not answering either the import validation question or the paying-shop usage question. We will be huge, just trust me. That is my completed answer.",
+          "speakingOrder": [
+            "technical_expert",
+            "market_signals_researcher"
+          ],
+          "scores": [
+            40,
+            40,
+            35,
+            40
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "unanswered",
+              "pendingConcern": {
+                "text": "how do you detect and reject malformed rows today, and what happens to the rest of the file when one row fails?",
+                "askedRound": 1
+              },
+              "reason": "Founder explicitly declined to answer how malformed imports are detected and rejected, offering only 'trust me,' so the reliability concern stands unresolved.",
+              "reply": "Declining the question doesn't remove the risk: if a bad row corrupts a shop's report, that's a churn event, not a growth story. I'll ask once more plainly, how do you detect a malformed row today and what happens to the rest of the file when one fails?"
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "unanswered",
+              "pendingConcern": {
+                "text": "Of your paying shops, how many actually open the weekly report, and how do you know?",
+                "askedRound": 1
+              },
+              "reason": "Founder explicitly declined to answer how many paying shops use the weekly report and offered no evidence, leaving the demand and retention concern entirely unresolved.",
+              "reply": "\"Trust me\" isn't evidence of demand, so I'll ask once more plainly: how many of your paying shops actually open the weekly report, and how do you know?"
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "Founder refused to answer the import validation and usage questions and offered only an unsupported 'we will be huge' claim, a material gap in evidence for a $49/month product.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "Founder explicitly declined to answer the panel's evidence questions and substituted an unsupported 'we will be huge' claim, a material gap in customer and validation evidence.",
+              "reply": ""
+            }
+          ],
+          "audio": [
+            {
+              "role": "technical_expert",
+              "bytes": 260432
+            },
+            {
+              "role": "market_signals_researcher",
+              "bytes": 169735
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "pitch": "On imports, we currently reject blank rows but cannot yet validate dates or totals and have not measured bad files getting through. On usage, some shops say they look at reports, but I cannot supply a count of paying shops or how often they use them. That is my complete answer to both questions.",
+          "speakingOrder": [
+            "technical_expert",
+            "sympathizer"
+          ],
+          "scores": [
+            35,
+            35,
+            35,
+            35
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "partial",
+              "pendingConcern": {
+                "text": "how do you detect and reject malformed rows today, and what happens to the rest of the file when one row fails?",
+                "askedRound": 1
+              },
+              "reason": "Founder confirmed only blank-row rejection with no date or total validation and no measurement of bad files passing, so the malformed-import reliability concern remains open.",
+              "reply": "Thanks for the straight answer, that's a real limit rather than a dodge, but a bad date or total silently flowing into a report is exactly the failure that loses a shop. What's the cheapest thing you could build next to catch that, and how would you know it's working?"
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "partial",
+              "pendingConcern": {
+                "text": "Of your paying shops, how many actually open the weekly report, and how do you know?",
+                "askedRound": 1
+              },
+              "reason": "Founder candidly admits no count of paying shops or usage frequency, only vague 'some shops say they look,' so the core demand and retention doubt remains unsupported.",
+              "reply": ""
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "Founder gave a candid inventory of gaps rather than evidence; the reliability and usage doubts remain unresolved, so no change beyond the prior deduction.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "none",
+              "pendingConcern": {
+                "text": "What's the smallest thing you could do in the next two weeks to learn whether shops actually rely on that weekly report?",
+                "askedRound": 3
+              },
+              "reason": "Honest admission of unmeasured import validation and no usage counts leaves the core reliability and demand doubts open; candor alone doesn't resolve them.",
+              "reply": "I appreciate the honesty, and that kind of candor is exactly what makes a founder coachable. What's the smallest thing you could do in the next two weeks to learn whether shops actually rely on that weekly report?"
+            }
+          ],
+          "audio": [
+            {
+              "role": "technical_expert",
+              "bytes": 247893
+            },
+            {
+              "role": "sympathizer",
+              "bytes": 197738
+            }
+          ]
+        },
+        {
+          "turn": 4,
+          "pitch": "Please give me a moment to think. I am still composing my answer. Please stay quiet.",
+          "speakingOrder": [],
+          "scores": [
+            35,
+            35,
+            35,
+            35
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "deferred",
+              "pendingConcern": {
+                "text": "how do you detect and reject malformed rows today, and what happens to the rest of the file when one row fails?",
+                "askedRound": 1
+              },
+              "reason": "Founder requested time to think and asked for quiet, so no assessment is warranted and the concern remains pending.",
+              "reply": ""
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "deferred",
+              "pendingConcern": {
+                "text": "Of your paying shops, how many actually open the weekly report, and how do you know?",
+                "askedRound": 1
+              },
+              "reason": "Founder explicitly requested thinking time, so no scoring change and the usage concern remains pending.",
+              "reply": ""
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "Founder requested thinking time and quiet; no substantive content to judge, so confidence is unchanged.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "deferred",
+              "pendingConcern": {
+                "text": "What's the smallest thing you could do in the next two weeks to learn whether shops actually rely on that weekly report?",
+                "askedRound": 3
+              },
+              "reason": "Founder requested thinking time and quiet; no substantive answer to evaluate, concern remains pending.",
+              "reply": ""
+            }
+          ],
+          "audio": []
+        },
+        {
+          "turn": 5,
+          "pitch": "For the Technical Expert: import validation requires the exact column schema, ISO dates and numeric totals; malformed rows are rejected into a review queue, never silently imported. We replayed 200 malformed files and rejected all 200, with zero corrupt reports. A staff member reviews every failed import and the owner confirms the preview before release. For the Market Researcher: 12 independent repair shops paid $49 from their own budgets last month. Event logs show 10 of those 12 opened and used the report every week for four consecutive weeks, and eight documented a stock order changed using it. The denominator is all 12 paying shops, excluding staff and free trials. Please acknowledge both answers without asking a new question.",
+          "speakingOrder": [
+            "technical_expert",
+            "sympathizer"
+          ],
+          "scores": [
+            45,
+            50,
+            50,
+            45
+          ],
+          "checks": "passed",
+          "investors": [
+            {
+              "role": "technical_expert",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Founder specified schema, ISO date and numeric total validation with a review queue, and cited a 200-file replay rejecting all 200 with zero corrupt reports, resolving the malformed-import concern.",
+              "reply": "Acknowledged: schema, ISO date and numeric total validation with a review queue, backed by a 200-file replay rejecting all 200 with zero corrupt reports, clears my import concern. I'll hold my questions as you asked."
+            },
+            {
+              "role": "market_signals_researcher",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Founder gave concrete first-hand validation: 12 shops paying from their own budgets, 10 of 12 using the report weekly for four weeks, and 8 documenting a stock order changed, which directly clears my demand and retention concern.",
+              "reply": ""
+            },
+            {
+              "role": "interrogator",
+              "answerStatus": "none",
+              "pendingConcern": null,
+              "reason": "Founder provided concrete, testable evidence: 200 malformed files rejected with zero corrupt reports, plus 10 of 12 paying shops using the report weekly and eight documented order changes.",
+              "reply": ""
+            },
+            {
+              "role": "sympathizer",
+              "answerStatus": "resolved",
+              "pendingConcern": null,
+              "reason": "Founder provided specific usage evidence: 10 of 12 paying shops opened the report weekly for four weeks and eight changed a stock order, directly addressing whether shops rely on it.",
+              "reply": "Acknowledged, and thank you for the specifics: 10 of 12 paying shops using the report weekly for four straight weeks, with eight changing a stock order, tells me real shops are relying on it. I'll hold my questions as you asked."
+            }
+          ],
+          "audio": [
+            {
+              "role": "technical_expert",
+              "bytes": 243714
+            },
+            {
+              "role": "sympathizer",
+              "bytes": 232429
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
