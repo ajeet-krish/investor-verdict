@@ -95,6 +95,10 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 
 .suggestion-caption{font-size:12px;line-height:1.5;margin:0;color:var(--ink2)}
 .input-examples{list-style:none;display:flex;flex-direction:column;gap:12px;margin:0;padding:0}
-.input-examples li{padding:14px;background:#f4f3ef;border:1px solid #e4e1d8;border-radius:10px}
-.input-examples h2{font-size:12px;font-weight:600;color:#1f6b3b;margin:0 0 7px}
-.input-examples p{font-size:14px;line-height:1.5;margin:0}
+.input-examples li{margin:0;padding:0}
+.pitch-option{display:block;width:100%;text-align:left;padding:14px;background:#f4f3ef;border:1px solid #e4e1d8;border-radius:10px;color:var(--ink);font:inherit;cursor:pointer}
+.pitch-option:hover{background:#eaf3eb;border-color:#92b99d}
+.pitch-option:focus-visible{outline:2px solid #1f6b3b;outline-offset:3px}
+.pitch-option:disabled{opacity:.5;cursor:default}
+.pitch-title{display:block;font-size:12px;font-weight:600;color:#1f6b3b;margin-bottom:7px}
+.pitch-copy{display:block;font-size:13px;line-height:1.5}

@@ -226,6 +226,7 @@ function main(): void {
   const startBtn = must<HTMLButtonElement>(document, "#start");
   const replyAudio = must<HTMLAudioElement>(document, "#reply-audio");
   const skipAudio = must<HTMLButtonElement>(document, "#skip-audio");
+  const pitchButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".pitch-option"));
   freezeBtn.hidden = true; // Live confidence is authoritative; do not discard score updates.
   promptInput.maxLength = 4000;
 
@@ -243,7 +244,7 @@ function main(): void {
   const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
     busy = value;
-    for (const control of [send, startBtn, promptInput]) control.disabled = value;
+    for (const control of [send, startBtn, promptInput, ...pitchButtons]) control.disabled = value;
     resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
     micBtn.disabled = value && voiceState === 'off';
     bridge?.refresh();
@@ -489,6 +490,20 @@ function main(): void {
     seconds++;
     timer.textContent = `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   }, 1000);
+
+  pitchButtons.forEach(button => button.addEventListener('click', () => {
+    if (busy || app.hidden) return;
+    const pitch = must<HTMLElement>(button, '.pitch-copy').textContent?.trim();
+    if (!pitch) return;
+    bridge?.pauseForHuman();
+    voice.stop();
+    promptInput.value = pitch;
+    chatbox.hidden = false;
+    chatBtn.setAttribute('aria-pressed', 'true');
+    chatBtn.setAttribute('aria-label', 'Hide chat');
+    promptInput.focus();
+    showNotice('Pitch added to chat. Edit it or press Send.');
+  }));
 
   const layout = must<HTMLElement>(document, ".layout");
   const tipsEl = must<HTMLElement>(document, "#tips");

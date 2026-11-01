@@ -1,7 +1,7 @@
 # investor-verdict
 
-## Read-only suggested inputs
-The right sidebar is now a static, read-only list of hardcoded sample founder inputs in `frontend/confidence-panel/index.html`. It has no chat, editable fields, suggestion buttons or transcript. The main chat and microphone remain the input paths. The earlier interactive OpenAI coach module/API is retained for reference and explicit tests, but the frontend no longer imports or calls it. Do not restore the interactive sidebar without a user request.
+## Hardcoded practice pitches
+The right sidebar offers three fixed fictional product pitches: PantryPal, BorrowBox and StudySprint. Clicking a card fills the main chat input; it never sends automatically. The sidebar has no editable fields or separate chat. Cards are disabled during an investor turn; choosing one pauses coding-agent control and stops microphone capture so the user can review before sending. Text lives in `frontend/confidence-panel/index.html`. The previous OpenAI coach prototype is retained but the active frontend does not import or call it.
 
 ## Coding agents in the live app
 Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.

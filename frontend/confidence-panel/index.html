@@ -83,26 +83,32 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
           <span id="freeze-label" style="margin-left:8px">Freeze scores</span>
         </button>
-        <button id="tipsbtn" type="button" aria-pressed="true">Suggestions</button>
+        <button id="tipsbtn" type="button" aria-pressed="true">Pitches</button>
         <button id="reset" type="button">Reset</button>
         <button class="lv" id="leave" type="button">Leave</button>
       </div>
     </div>
-    <aside class="tips" id="tips" aria-label="Suggested inputs">
-      <div class="tips-head">Suggested inputs</div>
-      <p class="suggestion-caption">A few ways to start. Respond in the main chat or use your microphone.</p>
+    <aside class="tips" id="tips" aria-label="Practice pitches">
+      <div class="tips-head">Pick a practice pitch</div>
+      <p class="suggestion-caption">Three fictional product ideas. Select one to fill the main chat, then edit or press Send.</p>
       <ol class="input-examples">
         <li>
-          <h2>Introduce the idea</h2>
-          <p>I'm building an AI pitch-practice app to help founders prepare for investor meetings.</p>
+          <button class="pitch-option" type="button" aria-label="Use PantryPal pitch">
+            <span class="pitch-title">PantryPal · Meal planning</span>
+            <span class="pitch-copy">I'm building PantryPal, a meal-planning app that suggests recipes from ingredients people already have. It would help busy households waste less food. We plan to offer a free version and charge for weekly meal plans. What would you want us to validate first?</span>
+          </button>
         </li>
         <li>
-          <h2>Explain the problem</h2>
-          <p>Founders need a low-pressure place to practise answering tough questions before a real pitch.</p>
+          <button class="pitch-option" type="button" aria-label="Use BorrowBox pitch">
+            <span class="pitch-title">BorrowBox · Tool sharing</span>
+            <span class="pitch-copy">I'm building BorrowBox, an app where neighbours can rent tools from each other instead of buying them for one job. We would earn a small fee on each rental. Our first step would be a trial in one neighbourhood. What is the biggest risk you see?</span>
+          </button>
         </li>
         <li>
-          <h2>Ask for guidance</h2>
-          <p>What would you need to see before you believed this idea could work?</p>
+          <button class="pitch-option" type="button" aria-label="Use StudySprint pitch">
+            <span class="pitch-title">StudySprint · Study planning</span>
+            <span class="pitch-copy">I'm building StudySprint, a study planner that turns a student's deadlines and available time into a simple daily schedule. We would start with university students and test a low-cost monthly subscription. How would you check whether students would pay for it?</span>
+          </button>
         </li>
       </ol>
     </aside>

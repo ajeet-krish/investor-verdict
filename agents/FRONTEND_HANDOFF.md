@@ -143,3 +143,7 @@ Validation: 64 tests and the build pass, including immediate opening choices wit
 The latest user instruction supersedes the interactive reply-coach sections above. The right side now shows three fixed example inputs (introduce the idea, explain the problem, ask for guidance). Its markup lives directly in `frontend/confidence-panel/index.html`. There are no right-side text fields, option buttons, notes, automatic generation controls or transcript. Only the main chat/microphone accepts founder input; the conversation remains in the main chat.
 
 The frontend no longer imports or invokes `reply-coach.ts`, so this sidebar does not request OpenAI recommendations. Earlier coach modules, endpoint and explicit test commands remain available as a prototype, but are not part of the active sidebar flow. No key or environment changes were needed.
+
+## Current sidebar: three selectable product pitches
+
+The latest refinement replaces the three generic read-only inputs with hardcoded fictional pitches for PantryPal (meal planning), BorrowBox (neighbourhood tool rental), and StudySprint (student study planning). Each card fills the main chat input for editing; the user must press Send. There is still no separate sidebar chat or text field. Choosing a card opens the main chat if hidden, pauses coding-agent control and stops microphone capture. Cards are disabled while the panel is busy. This feature makes no OpenAI requests. TypeScript and production build pass.
