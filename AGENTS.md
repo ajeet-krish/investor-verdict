@@ -1,7 +1,7 @@
 # investor-verdict
 
-## Hardcoded practice pitches
-The right sidebar offers three fixed fictional product pitches: PantryPal, BorrowBox and StudySprint. Clicking a card fills the main chat input; it never sends automatically. The sidebar has no editable fields or separate chat. Cards are disabled during an investor turn; choosing one pauses coding-agent control and stops microphone capture so the user can review before sending. Text lives in `frontend/confidence-panel/index.html`. The previous OpenAI coach prototype is retained but the active frontend does not import or call it.
+## Starter pitches and transcript-based follow-ups
+The right sidebar starts with three hardcoded fictional product pitches (PantryPal, BorrowBox, StudySprint). After a completed investor round, it shows three suggestions from OpenAI `gpt-6.1-terra` with `reasoning.effort: medium`, based on the server-owned sent founder text and actual investor replies. `pitch-suggestions.ts` is the active controller; the older `reply-coach.ts` editor is not used. Selecting a card fills the main chat without sending. There is no separate sidebar chat or editable field. Keep credentials server-side and reject stale recommendations after a new turn/reset. See [the current handoff](agents/FRONTEND_HANDOFF.md).
 
 ## Coding agents in the live app
 Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.

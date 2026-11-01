@@ -43,7 +43,7 @@
       <div class="g" id="grid"></div>
 
       <div class="chatbox" id="chatbox">
-        <div class="log" id="log" aria-live="polite"></div>
+        <div class="log" id="log" role="log" aria-label="Conversation transcript" aria-live="polite"></div>
         <form id="form" autocomplete="off">
           <input id="prompt" type="text" placeholder="Pitch to the panel" aria-label="Your pitch" />
           <button id="send" type="submit">Send</button>
@@ -89,9 +89,9 @@
       </div>
     </div>
     <aside class="tips" id="tips" aria-label="Practice pitches">
-      <div class="tips-head">Pick a practice pitch</div>
-      <p class="suggestion-caption">Three fictional product ideas. Select one to fill the main chat, then edit or press Send.</p>
-      <ol class="input-examples">
+      <div class="tips-head" id="pitch-heading">Pick a practice pitch</div>
+      <p class="suggestion-caption" id="pitch-status" role="status">Three fictional product ideas. Select one to fill the main chat, then edit or press Send.</p>
+      <ol class="input-examples" id="pitch-options">
         <li>
           <button class="pitch-option" type="button" aria-label="Use PantryPal pitch">
             <span class="pitch-title">PantryPal · Meal planning</span>

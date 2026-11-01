@@ -16,7 +16,8 @@ const failure = (message, status) => Object.assign(new Error(message), { status 
 export function createReplyCoach({ env = process.env, fetchImpl = fetch, now = Date.now } = {}) {
   const rooms = new Map();
   const apiKey = env.OPENAI_API_KEY || env.openai_key || env.OPENAI_KEY;
-  const model = env.OPENAI_COACH_MODEL || 'gpt-4o-mini';
+  const model = env.OPENAI_COACH_MODEL || 'gpt-6.1-terra';
+  const reasoningEffort = env.OPENAI_COACH_REASONING_EFFORT || 'medium';
   let windowStart = 0, requestCount = 0;
   return {
     configured: Boolean(apiKey),
@@ -44,7 +45,7 @@ export function createReplyCoach({ env = process.env, fetchImpl = fetch, now = D
       room.count++; requestCount++;
       const controller = new AbortController();
       room.pending = controller;
-      const timeout = setTimeout(() => controller.abort(), 25000);
+      const timeout = setTimeout(() => controller.abort(), 45000);
       const abort = () => controller.abort();
       signal?.addEventListener('abort', abort, { once: true });
       if (signal?.aborted) controller.abort();
@@ -58,7 +59,7 @@ export function createReplyCoach({ env = process.env, fetchImpl = fetch, now = D
         const response = await fetchImpl('https://api.openai.com/v1/responses', {
           method: 'POST', redirect: 'error', signal: controller.signal,
           headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, store: false, instructions: instructions + (!context.history.length ? '\nOPENING MODE: There has been NO discussion and no investor has asked a question. Do not say we discussed anything. Draft three introductory inputs using only the founder note. Describe an idea as something I am exploring or want to build, not as working features or guaranteed benefits. Never invent feature details such as real-time analysis or tone feedback. Use these three approaches: introduce the supplied idea; ask which problem to validate; ask who might need it. Summary should say the founder is ready to introduce an idea. If no idea is supplied, use [idea] and [customer] placeholders.' : ''), input: JSON.stringify(contextData), max_output_tokens: 800,
+          body: JSON.stringify({ model, store: false, instructions: instructions + (!context.history.length ? '\nOPENING MODE: There has been NO discussion and no investor has asked a question. Do not say we discussed anything. Draft three introductory inputs using only the founder note. Describe an idea as something I am exploring or want to build, not as working features or guaranteed benefits. Never invent feature details such as real-time analysis or tone feedback. Use these three approaches: introduce the supplied idea; ask which problem to validate; ask who might need it. Summary should say the founder is ready to introduce an idea. If no idea is supplied, use [idea] and [customer] placeholders.' : ''), input: JSON.stringify(contextData), max_output_tokens: 4096, reasoning: { effort: reasoningEffort },
             text: { format: { type: 'json_schema', name: 'founder_reply_coach', strict: true, schema } } }),
         });
         if (!response.ok) throw failure(response.status === 429 ? 'OpenAI quota or rate limit reached. Try again later.' : response.status === 401 ? 'OpenAI rejected the server key. Check the key and restart.' : 'The coach is unavailable. Try again when ready.', 502);

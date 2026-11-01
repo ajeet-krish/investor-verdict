@@ -1,4 +1,5 @@
 import "./style.css";
+import { createPitchSuggestions } from "./pitch-suggestions";
 import { createAgentBridgeUI } from "./agent-bridge";
 import type { AgentSubmission } from "./agent-bridge";
 import { createRealtimeVoice } from "./realtime-voice";
@@ -226,7 +227,6 @@ function main(): void {
   const startBtn = must<HTMLButtonElement>(document, "#start");
   const replyAudio = must<HTMLAudioElement>(document, "#reply-audio");
   const skipAudio = must<HTMLButtonElement>(document, "#skip-audio");
-  const pitchButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".pitch-option"));
   freezeBtn.hidden = true; // Live confidence is authoritative; do not discard score updates.
   promptInput.maxLength = 4000;
 
@@ -240,14 +240,16 @@ function main(): void {
   let audioPlaying = false;
   let audioGeneration = 0;
   let bridge: ReturnType<typeof createAgentBridgeUI> | undefined;
+  let suggestions: ReturnType<typeof createPitchSuggestions> | undefined;
   let speakingName = '';
   const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
     busy = value;
-    for (const control of [send, startBtn, promptInput, ...pitchButtons]) control.disabled = value;
+    for (const control of [send, startBtn, promptInput]) control.disabled = value;
     resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
     micBtn.disabled = value && voiceState === 'off';
     bridge?.refresh();
+    suggestions?.refresh();
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
@@ -302,6 +304,7 @@ function main(): void {
   /* One request at a time; no queued requests can leak into a new pitch. */
   const judge = async (text: string, job?: AgentSubmission): Promise<void> => {
     setBusy(true);
+    suggestions?.begin();
     const current = epoch;
     const currentAudio = audioGeneration;
     let bridgeRevision: number | undefined;
@@ -322,6 +325,7 @@ function main(): void {
       lastTurn = result.turn;
       panel.forEach((p, i) => (p.score = result.scores[i]));
       draw(before);
+      void suggestions?.complete(result.bridgeRevision);
       addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
       if (!result.speakingOrder.length) showNotice("The panel is listening.");
       for (const role of result.speakingOrder) {
@@ -342,6 +346,7 @@ function main(): void {
         }
       }
     } catch (err) {
+      suggestions?.failed();
       const message = err instanceof Error ? err.message : "The panel couldn't respond.";
       addMsg("sys", `${message} Your text is below so you can retry.`);
       promptInput.value = text;
@@ -409,7 +414,7 @@ function main(): void {
     else if (!busy) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
   });
   skipAudio.addEventListener('click', () => player.stop());
-  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); voice.stop(); player.stop(); });
+  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); suggestions?.close(); voice.stop(); player.stop(); });
 
   camBtn.addEventListener("click", () => {
     const on = camBtn.getAttribute("aria-pressed") !== "true";
@@ -430,6 +435,7 @@ function main(): void {
   const resetSession = async (): Promise<boolean> => {
     if (busy && !audioPlaying) return false;
     epoch++;
+    suggestions?.reset();
     player.stop();
     replyAudio.hidden = true;
     skipAudio.hidden = true;
@@ -491,19 +497,20 @@ function main(): void {
     timer.textContent = `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   }, 1000);
 
-  pitchButtons.forEach(button => button.addEventListener('click', () => {
-    if (busy || app.hidden) return;
-    const pitch = must<HTMLElement>(button, '.pitch-copy').textContent?.trim();
-    if (!pitch) return;
-    bridge?.pauseForHuman();
-    voice.stop();
-    promptInput.value = pitch;
-    chatbox.hidden = false;
-    chatBtn.setAttribute('aria-pressed', 'true');
-    chatBtn.setAttribute('aria-label', 'Hide chat');
-    promptInput.focus();
-    showNotice('Pitch added to chat. Edit it or press Send.');
-  }));
+  suggestions = createPitchSuggestions(API_URL, {
+    busy: () => busy,
+    attach: text => {
+      if (busy || app.hidden) return;
+      bridge?.pauseForHuman();
+      voice.stop();
+      promptInput.value = text;
+      chatbox.hidden = false;
+      chatBtn.setAttribute('aria-pressed', 'true');
+      chatBtn.setAttribute('aria-label', 'Hide chat');
+      promptInput.focus();
+      showNotice('Added to chat. Edit it or press Send.');
+    },
+  });
 
   const layout = must<HTMLElement>(document, ".layout");
   const tipsEl = must<HTMLElement>(document, "#tips");

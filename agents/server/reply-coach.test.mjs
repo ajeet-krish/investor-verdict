@@ -19,6 +19,7 @@ test('coach uses server history and public concerns, keeps key server-side, and 
   assert.equal(calls[0].url, 'https://api.openai.com/v1/responses');
   assert.equal(calls[0].options.headers.Authorization, `Bearer ${env.openai_key}`);
   const request = JSON.parse(calls[0].options.body);
+  assert.equal(request.model, 'gpt-6.1-terra'); assert.deepEqual(request.reasoning, { effort: 'medium' });
   assert.equal(request.store, false); assert.equal(request.text.format.strict, true);
   assert.ok(request.input.includes('Five people tested'));
   assert.ok(!request.input.includes('private scoring rationale'));
