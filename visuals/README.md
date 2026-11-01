@@ -9,6 +9,10 @@ What goes here:
 
 Contract: keep effects modular so frontend can trigger them with one function call.
 
+## Live investor confidence
+
+Arjun's four ElevenLabs investors and the 100-to-0 confidence display contract are documented in [confidence/README.md](confidence/README.md). This includes public agent IDs, saved prompts, a validated client-tool score handler, portrait panel, and local preview. Application wiring is the frontend and agents owners' next step.
+
 ## Investor portraits, Arjun Behl
 
 Contributed by **Arjun Behl** on November 1, 2026.

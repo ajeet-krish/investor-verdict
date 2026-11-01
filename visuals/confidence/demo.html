@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Investor confidence preview</title>
+<link rel="stylesheet" href="./panel.css">
+<style>
+body { max-width: 1100px; margin: 36px auto; padding: 0 20px; background: #0d1423; color: #f0f3fa; font: 16px system-ui, sans-serif; }
+header p { color: #b9c5da; line-height: 1.6; }
+.controls { display: flex; gap: 12px; flex-wrap: wrap; margin: 24px 0; }
+button, select { background: #26334c; color: #fff; padding: 12px; border: 1px solid #53637d; border-radius: 8px; font: inherit; }
+</style>
+<header><h1>Investor confidence</h1><p>Each investor starts at 100. Their interest falls when the pitch leaves important questions unanswered.</p>
+<p>This is a local display preview. The buttons simulate score reports; no ElevenLabs calls or credits are used.</p></header>
+<div class="controls"><select id="investor" aria-label="Investor"></select><button id="hold">Strong answer, hold score</button><button id="drop">Unsupported claim, lose 7</button><button id="reset">New pitch</button></div>
+<main id="panel"></main>
+<script type="module">
+import { INVESTORS } from './investors.mjs';
+import { createInterestController } from './interest-controller.mjs';
+import { mountInvestorPanel } from './panel.mjs';
+const select = document.querySelector('#investor');
+for (const investor of INVESTORS) select.add(new Option(investor.name, investor.key));
+let controller;
+let unmount;
+function start() {
+  unmount?.(); controller?.close();
+  controller = createInterestController();
+  unmount = mountInvestorPanel(document.querySelector('#panel'), controller);
+}
+function simulate(loss) {
+  const state = controller.snapshot().find(s => s.key === select.value);
+  controller.clientToolsFor(state.key).report_investor_interest({
+    turn_number: state.turn_number + 1, confidence: Math.max(0, state.confidence - loss),
+    reason: loss ? 'Preview: a material claim still lacks supporting evidence.' : 'Preview: clear evidence supports the answer.',
+  });
+}
+document.querySelector('#hold').onclick = () => simulate(0);
+document.querySelector('#drop').onclick = () => simulate(7);
+document.querySelector('#reset').onclick = start;
+start();
+</script>
+</html>
