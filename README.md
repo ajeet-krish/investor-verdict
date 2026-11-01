@@ -14,9 +14,9 @@ Ever dreamed of being a Series A founder raising $5 million? Now you can live ou
 
 ## Demo video
 
-Live demo: https://investor-verdict-1.onrender.com
+Live demo: https://investor-verdict-uxj7.onrender.com
 
-Health check: GET https://investor-verdict-1.onrender.com/health should return ok true before you pitch.
+Health check: GET https://investor-verdict-uxj7.onrender.com/health should return ok true before you pitch.
 
 <table>
 <tr><th>Asset</th><th>Path</th><th>Note</th></tr>

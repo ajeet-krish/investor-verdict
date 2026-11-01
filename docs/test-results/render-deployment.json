@@ -1,0 +1,32 @@
+{
+  "url": "https://investor-verdict-uxj7.onrender.com",
+  "health": true,
+  "ui": true,
+  "evaluation": {
+    "status": 200,
+    "turn": 1,
+    "scores": [
+      60,
+      60,
+      60,
+      60
+    ],
+    "speakers": [
+      "sympathizer",
+      "interrogator"
+    ]
+  },
+  "audio": {
+    "status": 200,
+    "type": "audio/mpeg",
+    "bytes": 137552
+  },
+  "coach": {
+    "status": 200,
+    "suggestions": 3
+  },
+  "voiceToken": {
+    "status": 200,
+    "issued": true
+  }
+}
