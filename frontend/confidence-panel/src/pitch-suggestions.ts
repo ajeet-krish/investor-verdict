@@ -29,7 +29,7 @@ export function createPitchSuggestions(api: string, hooks: { busy: () => boolean
   };
   const reset = () => {
     cancel(); heading.textContent = 'Pick a practice pitch';
-    status.textContent = 'Three fictional product ideas. Select one to fill the main chat, then edit or press Send.';
+    status.textContent = 'Three fictional practice cases with fixed people, numbers and pricing. Select one, then press Send.';
     show(starters);
   };
   reset();

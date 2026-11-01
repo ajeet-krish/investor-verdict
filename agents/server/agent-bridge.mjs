@@ -1,3 +1,4 @@
+import { practiceCaseFromText } from './practice-cases.mjs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { PanelError } from './text-panel.mjs';
 
@@ -33,7 +34,7 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
   function context(room) {
     return copy({ connected: Boolean(room.token), revision: room.revision, busy: room.busy, ready: room.ready, autoSend: room.autoSend,
       scores: room.result?.scores ?? [50, 50, 50, 50], lastResult: room.result,
-      history: room.history, pending: [...room.jobs.values()].find(j => j.status === 'pending') ?? null,
+      history: room.history, practiceCaseId: room.practiceCaseId ?? null, pending: [...room.jobs.values()].find(j => j.status === 'pending') ?? null,
       expiresAt: room.expiresAt });
   }
   return {
@@ -42,7 +43,7 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
       let room = rooms.get(id);
       if (!room) {
         if (rooms.size >= maxRooms) throw new PanelError('Too many app connections. Close an old session.', 429);
-        room = { id: randomUUID(), token: null, revision: 0, result: null, history: [], jobs: new Map(), busy: false, ready: true, autoSend: false };
+        room = { id: randomUUID(), token: null, revision: 0, result: null, history: [], jobs: new Map(), busy: false, ready: true, autoSend: false, practiceCaseId: null };
         rooms.set(room.id, room);
       }
       touch(room);
@@ -108,13 +109,14 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
       room.busy = true;
       room.ready = false;
       touch(room);
-      return { id, revision: room.revision, jobId: job?.id, pitch: job?.pitch ?? body.pitch };
+      return { id, revision: room.revision, jobId: job?.id, pitch: job?.pitch ?? body.pitch, practiceCaseId: practiceCaseFromText(body.pitch)?.id ?? room.practiceCaseId ?? null };
     },
     finish(ticket, result) {
       const room = roomFor(ticket.id);
       if (!room.busy || room.revision !== ticket.revision) throw new PanelError('App conversation changed.', 409);
       // A new provider session after expiry starts a new history, but bridge revisions stay monotonic.
       if (result.turn === 1) room.history = [];
+      room.practiceCaseId = ticket.practiceCaseId;
       room.result = copy(result);
       room.history.push({ founder: ticket.pitch, turn: result.turn, responses: result.speakingOrder.map(role => {
         const r = result.responses.find(r => r.role === role); return { role, reply: r.reply };
@@ -148,7 +150,7 @@ export function createAgentBridge({ ttlMs = 30 * 60 * 1000, now = Date.now, maxR
     reset(id) {
       const room = roomFor(id);
       if (room.busy) throw new PanelError('Wait for the current investor evaluation before resetting.', 409);
-      revoke(room); room.jobs.clear(); room.result = null; room.history = []; room.revision++; room.ready = true; touch(room);
+      revoke(room); room.jobs.clear(); room.result = null; room.history = []; room.practiceCaseId = null; room.revision++; room.ready = true; touch(room);
     },
     close() { for (const room of rooms.values()) revoke(room); rooms.clear(); },
   };

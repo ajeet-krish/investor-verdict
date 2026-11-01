@@ -5,7 +5,7 @@ import { createReplyCoach } from './reply-coach.mjs';
 import { createApiServer } from './app.mjs';
 import { createAgentBridge } from './agent-bridge.mjs';
 const env = { openai_key: 'private-coach-test-value' };
-const answer = { summary: 'The panel asked about customers.', focus: 'Say what you know.', suggestions: [{label:'Direct',reply:'We have [number] customers so far.'},{label:'Next step',reply:'I will check customer usage.'},{label:'Clarify',reply:'Which customer group matters most to you?'}] };
+const answer = { summary: 'The panel asked about customers.', focus: 'Say what you know.', suggestions: [{label:'Direct',reply:'We have five demo users so far.'},{label:'Next step',reply:'I will check customer usage.'},{label:'Clarify',reply:'Which customer group matters most to you?'}] };
 const response = () => ({ ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(answer) }] }] }) });
 const context = { revision: 2, busy: false, history: [{ founder: 'Five people tested our demo.', responses: [{ role: 'market_signals_researcher', reply: 'Who pays?' }] }], lastResult: { responses: [{ panelist: 'The VP', reason: 'private scoring rationale', pendingConcern: { text: 'Who pays?' } }] } };
 
@@ -100,4 +100,19 @@ test('invalid or missing option lists are rejected without an automatic retry',a
   let calls=0;
   const coach=createReplyCoach({env,fetchImpl:async()=>{calls++;return{ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({...answer,suggestions:[]})}]}]})};}});
   await assert.rejects(coach.recommend('r',context,{revision:2}),{status:502});assert.equal(calls,1);coach.close();
+});
+test('PantryPal suggestions receive fixed case facts, not filler from the prior founder reply',async()=>{
+  let sent;
+  const coach=createReplyCoach({env,fetchImpl:async(_url,options)=>{sent=JSON.parse(JSON.parse(options.body).input);return response();}});
+  const state={...context,history:[{founder:'I am building PantryPal.',responses:[]},{founder:'I spoke with [people].',responses:[]}],practiceCaseId:'pantrypal'};
+  await coach.recommend('case',state,{revision:2});
+  assert.equal(sent.fixedFictionalPracticeCase.interviews.count,12);
+  assert.equal(sent.fixedFictionalPracticeCase.interviews.people[0].name,'Maya Chen');
+  assert.match(sent.fixedFictionalPracticeCase.interviews.paymentFeedback,/8 of the 12/);
+  assert.equal(sent.fixedFictionalPracticeCase.fictional,true);coach.close();
+});
+test('placeholder suggestions cannot reach the composer',async()=>{
+  const withPlaceholder={...answer,suggestions:[{label:'Answer',reply:'I spoke to [people].'},...answer.suggestions.slice(1)]};
+  const coach=createReplyCoach({env,fetchImpl:async()=>({ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(withPlaceholder)}]}]})})});
+  await assert.rejects(coach.recommend('r',context,{revision:2}),{status:502});coach.close();
 });
