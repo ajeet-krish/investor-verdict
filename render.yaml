@@ -1,41 +1,30 @@
-# Render blueprint for investor verdict.
-# Live URL: https://investor-verdict-1.onrender.com (display name investor-verdict, URL slug investor-verdict-1).
-# Default runtime is Node with rootDir deploy, Build npm install, Start npm start.
-# Docker fallback: deploy/Dockerfile exists so a dashboard service created with
-# Docker runtime can still build. If dashboard shows Docker type, either keep
-# Docker and Render will use deploy/Dockerfile, or switch dashboard service to
-# Node runtime with Root deploy, Build npm install, Start npm start.
-# Routes served from deploy/server.js with Node builtins only: GET /health,
-# POST /api/signed-url (legacy agentKey flow), POST /api/evaluate,
-# POST /api/reset, /api/offer-decision, /api/coach,
-# GET or POST /api/reply-audio, GET or POST /api/voice-token,
-# /api/agent-bridge/*, GET /api/elevenlabs/config,
-# POST /api/elevenlabs/signed-url. Panel routes load agents/server handlers
-# with dynamic import. Server Sentry is optional: set SENTRY_DSN plus install
-# @sentry/node in deploy to enable, empty value keeps it disabled.
+# Deploy the whole repository so the frontend and API share one origin.
+# Existing dashboard services must also use the repository root and these commands.
 services:
-    - type: web
-      name: investor-verdict
-      runtime: node
-      rootDir: deploy
-      buildCommand: npm install
-      startCommand: npm start
-      plan: starter
-      healthCheckPath: /health
-      envVars:
-          - key: PORT
-            sync: false
-          - key: ELEVENLABS_API_KEY
-            sync: false
-          - key: ELEVENLABS_AGENT_ID_CTO
-            sync: false
-          - key: ELEVENLABS_AGENT_ID_TECH_BRO
-            sync: false
-          - key: ELEVENLABS_AGENT_ID_INTERROGATOR
-            sync: false
-          - key: ELEVENLABS_AGENT_ID_SYMPATHIZER
-            sync: false
-          - key: SENTRY_DSN
-            sync: false
-          - key: VITE_SENTRY_DSN
-            sync: false
+  - type: web
+    name: investor-verdict
+    runtime: node
+    branch: main
+    buildCommand: npm ci --include=dev && npm --prefix frontend/confidence-panel ci --include=dev && npm run build
+    startCommand: node deploy/server.js
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_CTO
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_TECH_BRO
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_INTERROGATOR
+        sync: false
+      - key: ELEVENLABS_AGENT_ID_SYMPATHIZER
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_COACH_MODEL
+        value: gpt-6.1-terra
+      - key: OPENAI_COACH_REASONING_EFFORT
+        value: medium
