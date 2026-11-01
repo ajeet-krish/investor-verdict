@@ -34,9 +34,31 @@ export function validateEvaluation(raw: unknown, seeds: { role: InvestorRole; na
   return data;
 }
 
-// Keep queued farewells visible. A tile leaves only after its own playback ends.
-export function createCallRoster(tiles: { role: InvestorRole; el: HTMLElement }[], grid: HTMLElement, empty: HTMLElement) {
+type ExitAnimation = { finished: Promise<unknown>; cancel: () => void };
+
+function animateInvestorExit(el: HTMLElement): ExitAnimation | undefined {
+  if (typeof el.animate !== 'function' ||
+      (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+  return el.animate([
+    { transform: 'translateY(0) scale(1)', opacity: 1, filter: 'blur(0px)', offset: 0 },
+    { transform: 'translateY(-4px) scale(1.015)', opacity: 1, filter: 'blur(0px)', offset: 0.18 },
+    { transform: 'translateY(14px) scale(.88, .12)', opacity: .75, filter: 'blur(2px)', offset: 0.65 },
+    { transform: 'translateY(24px) scale(.08, .015)', opacity: 0, filter: 'blur(8px)', offset: 1 },
+  ], { duration: 620, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+}
+
+// Keep queued farewells visible through playback and their exit animation.
+export function createCallRoster(tiles: { role: InvestorRole; el: HTMLElement }[], grid: HTMLElement, empty: HTMLElement,
+  animateExit: (el: HTMLElement) => ExitAnimation | undefined = animateInvestorExit) {
   const left = new Set<InvestorRole>();
+  const animations = new Map<InvestorRole, ExitAnimation>();
+  let generation = 0;
+  const cancelExits = () => {
+    generation++;
+    for (const animation of animations.values()) animation.cancel();
+    animations.clear();
+    for (const tile of tiles) tile.el.classList.remove('exiting');
+  };
   const render = () => {
     let count = 0;
     for (const tile of tiles) {
@@ -51,13 +73,31 @@ export function createCallRoster(tiles: { role: InvestorRole; el: HTMLElement }[
   return {
     get empty() { return left.size === tiles.length; },
     begin(result: Evaluation) {
+      cancelExits();
       left.clear();
       for (const role of result.departedRoles) if (!result.departureOrder.includes(role)) left.add(role);
       for (const tile of tiles) tile.el.classList.toggle('leaving', result.departureOrder.includes(tile.role));
       render();
     },
-    leave(role: InvestorRole) { left.add(role); render(); },
+    async leave(role: InvestorRole) {
+      const tile = tiles.find(t => t.role === role);
+      if (!tile || left.has(role) || animations.has(role)) return;
+      const current = generation;
+      tile.el.classList.toggle('exiting', true);
+      const animation = animateExit(tile.el);
+      if (animation) {
+        animations.set(role, animation);
+        try { await animation.finished; } catch { /* Reset cancels the effect. */ }
+      }
+      if (current !== generation) return;
+      left.add(role);
+      render();
+      tile.el.classList.remove('exiting');
+      animation?.cancel();
+      animations.delete(role);
+    },
     reset() {
+      cancelExits();
       left.clear();
       for (const tile of tiles) tile.el.classList.remove('leaving');
       render();
@@ -69,13 +109,13 @@ export async function playInvestorTurns(result: Evaluation, hooks: {
   current: () => boolean;
   present: (reply: Evaluation['responses'][number]) => void;
   play: (role: InvestorRole) => Promise<void>;
-  depart: (role: InvestorRole) => void;
+  depart: (role: InvestorRole) => void | Promise<void>;
 }) {
   for (const role of result.speakingOrder) {
     if (!hooks.current()) return;
     hooks.present(result.responses.find(r => r.role === role)!);
     await hooks.play(role);
     if (!hooks.current()) return;
-    if (result.departureOrder.includes(role)) hooks.depart(role);
+    if (result.departureOrder.includes(role)) await hooks.depart(role);
   }
 }

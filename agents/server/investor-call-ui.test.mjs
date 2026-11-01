@@ -19,9 +19,9 @@ function node() {
     classList: { toggle(k, on) { on ? classes.add(k) : classes.delete(k); }, remove(k) { classes.delete(k); } },
   };
 }
-function view() {
+function view(animateExit) {
   const tiles = roles.map(role => ({ role, el: node() })), grid = node(), empty = node();
-  const roster = createCallRoster(tiles, grid, empty);
+  const roster = createCallRoster(tiles, grid, empty, animateExit);
   return { tiles, grid, empty, roster };
 }
 
@@ -90,4 +90,53 @@ test('departed investors stay hidden on later turns, while a fresh session resto
   validateEvaluation(fresh, seeds, [0, 0, 0, 50]);
   v.roster.begin(fresh);
   assert.equal(v.grid.dataset.count, '4');
+});
+
+test('the collapse animation finishes before removing the tile or starting the next investor', async () => {
+  const effects = [], spoken = [];
+  const v = view(() => {
+    let finish;
+    const finished = new Promise(resolve => { finish = resolve; });
+    const effect = { finished, finish, cancel() {} }; effects.push(effect); return effect;
+  });
+  const r = result(3); v.roster.begin(r);
+  const playing = playInvestorTurns(r, {
+    current: () => true, present: reply => spoken.push(reply.role), play: async () => {},
+    depart: role => v.roster.leave(role),
+  });
+  for (let i = 0; i < 3; i++) {
+    await setImmediate();
+    assert.equal(effects.length, i + 1);
+    assert.equal(spoken.length, i + 1, 'Next investor waits for the exit effect');
+    assert.equal(v.grid.dataset.count, String(4 - i));
+    assert.equal(v.tiles[i].el.hidden, false);
+    effects[i].finish();
+  }
+  await playing;
+  assert.equal(spoken.length, 4);
+  assert.equal(v.grid.dataset.count, '1');
+});
+
+test('reset cancels a collapse and cannot hide a restored investor when its animation settles', async () => {
+  let reject, cancelled = 0;
+  const v = view(() => ({ finished: new Promise((_, fail) => { reject = fail; }),
+    cancel() { cancelled++; reject(new Error('Animation cancelled')); } }));
+  v.roster.begin(result());
+  const leaving = v.roster.leave(roles[0]);
+  assert.equal(v.tiles[0].el.hidden, false);
+  v.roster.reset(); await leaving;
+  assert.equal(cancelled, 1);
+  assert.equal(v.grid.dataset.count, '4');
+  assert.ok(v.tiles.every(t => !t.el.hidden));
+});
+
+test('reduced motion skips the collapse animation', async t => {
+  const original = globalThis.matchMedia;
+  globalThis.matchMedia = () => ({ matches: true });
+  t.after(() => { if (original) globalThis.matchMedia = original; else delete globalThis.matchMedia; });
+  const v = view();
+  v.tiles[0].el.animate = () => { throw new Error('Must not animate reduced motion'); };
+  await v.roster.leave(roles[0]);
+  assert.equal(v.tiles[0].el.hidden, true);
+  assert.equal(v.grid.dataset.count, '3');
 });

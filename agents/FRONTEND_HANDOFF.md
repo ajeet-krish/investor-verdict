@@ -193,3 +193,10 @@ Owner: Arjun Behl. Branch: `feat/live-reply-coach`. Newly-zero investors now rec
 ### Founder exits after the final farewell
 
 When the final remaining investor's farewell completes or is skipped, the UI automatically takes the founder out of the call and shows the welcome screen with **Call ended. Start a new pitch**. Microphone capture stops and coding-agent control pauses. The transition runs only after sequential playback finishes and only for the current call, so a reset cannot be overridden by an old completion. The completed transcript remains in memory until the next Start/Reset; Start follows the existing reset path and restores all four investors at 50. A single investor leaving while others remain does not end the founder's call.
+
+
+### Fixed call area and animated departures
+
+The call stage now retains its height as the participant count changes: 16:9 on desktop and 3:4 on narrow screens. The remaining tiles fill that fixed stage, so two departures cannot collapse the call area into a shorter row. The layout still adapts to the available viewport width.
+
+After farewell playback, the departing tile glows with a scanline, compresses into a thin line, blurs and fades over 620 ms. The next investor waits for this effect before speaking. After the final effect, the founder returns to the welcome screen as before. Reduced-motion users skip the effect. Reset cancels active animations and prevents a delayed completion from hiding a restored investor. No provider/backend changes or paid calls were needed. Seven frontend sequencing/cancellation tests and the production build pass.

@@ -180,3 +180,5 @@ Validation: 83 automated tests and the TypeScript/production build pass. Tests c
 
 
 Latest UI follow-up: after the last remaining investor finishes or skips its farewell, the founder automatically leaves as well. The welcome screen shows **Call ended. Start a new pitch**, with microphone and coding-agent control stopped/paused. Start resets the call through the existing reset flow. The earlier empty-call card is no longer the final screen; the transcript stays in memory until the next Start/Reset.
+
+Latest layout follow-up: the call stage keeps the same responsive height across participant counts (16:9 desktop, 3:4 narrow screens). Only its internal tile arrangement changes. Each departure now includes a 620 ms scanline/collapse/dissolve after speech, before the next investor or final founder exit. Reduced-motion mode skips the effect and Reset cancels it safely.

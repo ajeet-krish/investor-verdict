@@ -329,8 +329,9 @@ function main(): void {
             if (!played) showNotice('Audio stopped or unavailable. The investor reply is in the chat.');
           }
         },
-        depart: role => {
-          roster.leave(role);
+        depart: async role => {
+          await roster.leave(role);
+          if (current !== epoch) return;
           addMsg('sys', `${panel.find(p => p.role === role)!.name} left the call.`);
         },
       });
