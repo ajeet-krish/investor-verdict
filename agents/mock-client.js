@@ -1,19 +1,19 @@
 const SCRIPT = [
-    { agentId: "leo", text: "Love that spark. Tell me the moment a user lit up using this." },
-    { agentId: "marcus", text: "Okay, but who pays, and why do you win against incumbents." },
-    { agentId: "priya", text: "Walk me through the stack. What breaks first at scale." },
-    { agentId: "sofia", text: "Give me pricing, cost per user, and runway in plain numbers." },
-    { agentId: "leo", text: "That vision could sing. What story will users retell tomorrow." },
-    { agentId: "marcus", text: "Size the wedge for me. TAM today, first ten customers next." },
-    { agentId: "priya", text: "Name one tradeoff you made and why it was worth it." },
-    { agentId: "sofia", text: "Tie it to math. CAC, LTV, and margin on each plan." },
+    { agentId: "cto", text: "Who pays today and what TAM does that unlock." },
+    { agentId: "tech_bro", text: "Walk me through the stack. What breaks first at scale." },
+    { agentId: "interrogator", text: "What is profit per unit. Price, margin, cash, now." },
+    { agentId: "sympathizer", text: "Love that spark. Tell me a user moment you adore." },
+    { agentId: "cto", text: "What pricing have customers accepted so far." },
+    { agentId: "tech_bro", text: "What is novel here and what tradeoff was worth it." },
+    { agentId: "interrogator", text: "When do I get my cash back. Give me numbers." },
+    { agentId: "sympathizer", text: "What mission keeps you going through hard days." },
 ];
 
 const FLAVOR_PREFIX = {
-    leo: "Leo jumps in, upbeat: ",
-    marcus: "Marcus cuts in, dry: ",
-    priya: "Priya probes, curious: ",
-    sofia: "Sofia checks the math: ",
+    cto: "CTO cuts in, commercial: ",
+    tech_bro: "Tech Bro jumps in, buzzing: ",
+    interrogator: "Interrogator grills, blunt: ",
+    sympathizer: "Sympathizer smiles, warm: ",
 };
 
 export function createMockClient(options) {
@@ -117,7 +117,7 @@ export function createMockClient(options) {
     function simulateUtterance(text) {
         const input = String(text || "");
         emitTranscript("user", input);
-        const replyOrder = ["leo", "priya", "sofia", "marcus"];
+        const replyOrder = ["cto", "tech_bro", "interrogator", "sympathizer"];
         const pick = replyOrder[index % replyOrder.length];
         index += 1;
         function attemptReply() {

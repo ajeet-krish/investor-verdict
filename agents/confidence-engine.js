@@ -1,51 +1,94 @@
-import { DELTA_MAX, DELTA_MIN, LEAVE_AT, OFFER_AT, PERSONAS, START_SCORES } from "./config.js";
+import { AGENT_ORDER, DELTA_MAX, DELTA_MIN, LEAVE_AT, OFFER_AT, PERSONAS, START_SCORES } from "./config.js";
 
-const SHARED_POSITIVE = [
-    "customers",
+const CTO_POSITIVE = [
+    "tam",
+    "market",
     "pricing",
-    "traction",
+    "revenue",
     "paying",
-    "retention",
+    "traction",
+    "customers",
+    "share",
+    "arr",
+    "monopoly",
     "growth",
-    "profit",
-    "million",
-    "thousand",
-    "percent",
+    "retention",
 ];
 
-const SHARED_NEGATIVE = ["vague", "hype", "maybe", "sort of", "everyone", "hopefully", "probably", "kind of"];
-
-const LEO_POSITIVE = ["story", "energy", "vision", "mission", "passion", "excited", "love", "users love", "change"];
-
-const PRIYA_POSITIVE = [
+const TECH_BRO_POSITIVE = [
     "architecture",
+    "built",
+    "novel",
+    "scale",
+    "scalable",
     "tradeoff",
     "trade off",
     "stack",
     "latency",
-    "scalable",
-    "infrastructure",
     "api",
     "system",
-    "built",
-    "technical",
+    "infrastructure",
+    "innovation",
+    "creative",
 ];
 
-const SOFIA_POSITIVE = [
-    "unit",
-    "economics",
-    "burn",
+const INTERROGATOR_POSITIVE = [
+    "profit",
+    "price",
+    "pricing",
+    "margin",
+    "cash",
+    "payback",
+    "revenue",
+    "cost",
+];
+
+const SYMPATHIZER_POSITIVE = [
+    "story",
+    "mission",
+    "love",
+    "users love",
+    "vision",
+    "passion",
+    "excited",
+    "heart",
+    "change",
+    "journey",
+];
+
+const SHARED_NEGATIVE = ["vague", "hype", "maybe", "sort of", "everyone", "hopefully", "probably", "kind of"];
+
+const CTO_JARGON = [
+    "kubernetes",
+    "microservice",
+    "latency",
+    "stack",
+    "api",
+    "infrastructure",
+    "refactor",
+    "algorithm",
+];
+
+const TECH_BRO_FINANCE_PENALTY = [
     "cac",
     "ltv",
+    "burn",
     "runway",
-    "margin",
-    "cost",
-    "pricing",
+    "spreadsheet",
+    "unit economics",
+    "unit",
+    "economics",
 ];
 
-const MARCUS_POSITIVE = ["revenue", "moat", "tam", "market", "defensible", "arr", "share", "monopoly"];
+const POSITIVE_BY_AGENT = {
+    cto: CTO_POSITIVE,
+    tech_bro: TECH_BRO_POSITIVE,
+    interrogator: INTERROGATOR_POSITIVE,
+    sympathizer: SYMPATHIZER_POSITIVE,
+};
 
 const NUMBER_PATTERN = /\d/;
+const SHORT_PROXY_MAX = 500;
 
 function countHits(lower, phrases) {
     let hits = 0;
@@ -60,7 +103,10 @@ function countHits(lower, phrases) {
 function clampDelta(raw) {
     const mag = Math.abs(raw);
     const bounded = Math.min(DELTA_MAX, Math.max(DELTA_MIN, mag));
-    return raw < 0 ? 0 - bounded : bounded;
+    if (raw < 0) {
+        return 0 - bounded;
+    }
+    return bounded;
 }
 
 function trimReason(text) {
@@ -71,79 +117,122 @@ function trimReason(text) {
     return clean.slice(0, 137) + "...";
 }
 
-function scoreOneAgent(agentId, lower, hasNumber) {
+function getPersona(agentId) {
     const persona = PERSONAS[agentId];
-    const sensitivity = persona && persona.sensitivity ? persona.sensitivity : 1;
+    if (persona) {
+        return persona;
+    }
+    return { upSensitivity: 1, downSensitivity: 1, upThreshold: 2 };
+}
+
+function scoreOneAgent(agentId, lower, hasNumber, fullLength) {
+    const persona = getPersona(agentId);
+    const upSensitivity = Number(persona.upSensitivity) || 1;
+    const downSensitivity = Number(persona.downSensitivity) || 1;
+    const upThreshold = Number(persona.upThreshold) || 2;
     let score = 0;
     const notes = [];
 
-    const sharedPos = countHits(lower, SHARED_POSITIVE);
+    const positiveList = POSITIVE_BY_AGENT[agentId] || [];
     const sharedNeg = countHits(lower, SHARED_NEGATIVE);
-    if (hasNumber) {
-        score += 4;
-        notes.push("numbers cited");
-    }
-    if (sharedPos > 0) {
-        score += 2 + sharedPos;
-        notes.push("specifics on traction or pricing");
-    }
-    if (sharedNeg > 0) {
-        score += 0 - (2 + sharedNeg);
-        notes.push("vague or hype phrasing");
+
+    if (agentId === "cto") {
+        const financeHits = countHits(lower, CTO_POSITIVE);
+        const jargonHits = countHits(lower, CTO_JARGON);
+        if (financeHits > 0) {
+            score += 2 + financeHits;
+            notes.push("market and finance signals landed");
+        }
+        if (hasNumber) {
+            score += 3;
+            notes.push("numbers cited");
+        }
+        if (jargonHits > 0 && financeHits === 0) {
+            score += 0 - (3 + jargonHits);
+            notes.push("tech jargon with zero finance");
+        }
+        if (sharedNeg > 0) {
+            score += 0 - (2 + sharedNeg);
+            notes.push("vague or hype phrasing");
+        }
     }
 
-    if (agentId === "leo") {
-        const hits = countHits(lower, LEO_POSITIVE);
+    if (agentId === "tech_bro") {
+        const hits = countHits(lower, TECH_BRO_POSITIVE);
+        const financeHits = countHits(lower, TECH_BRO_FINANCE_PENALTY);
         if (hits > 0) {
             score += 2 + hits;
-            notes.push("story and energy landed");
+            notes.push("build detail and novel choices");
+        }
+        if (financeHits > 0) {
+            score += 0 - (2 + financeHits);
+            notes.push("spreadsheet talk, yawns at finance");
+        }
+        if (sharedNeg > 0) {
+            score += 0 - (2 + sharedNeg);
+            notes.push("vague or hype phrasing");
+        }
+    }
+
+    if (agentId === "interrogator") {
+        const hits = countHits(lower, INTERROGATOR_POSITIVE);
+        const shortEnough = fullLength <= SHORT_PROXY_MAX;
+        const gatePass = hasNumber && hits > 0 && shortEnough;
+        if (gatePass) {
+            score += 2 + hits + 2;
+            notes.push("profit plus numbers, short and blunt");
+        } else {
+            if (hasNumber === false) {
+                score += 0 - 3;
+                notes.push("no numbers for cash check");
+            }
+            if (hits === 0) {
+                score += 0 - 2;
+                notes.push("no profit price margin cash proof");
+            }
+            if (shortEnough === false) {
+                score += 0 - 2;
+                notes.push("too long, blunt answer missing");
+            }
+        }
+        if (sharedNeg > 0) {
+            score += 0 - (2 + sharedNeg);
+            notes.push("vague or hype phrasing");
+        }
+    }
+
+    if (agentId === "sympathizer") {
+        const hits = countHits(lower, SYMPATHIZER_POSITIVE);
+        if (hits > 0) {
+            score += 2 + hits;
+            notes.push("story and user love landed");
         } else if (lower.length < 24) {
-            score += 0 - 3;
-            notes.push("flat pitch, low energy");
-        }
-    }
-
-    if (agentId === "priya") {
-        const hits = countHits(lower, PRIYA_POSITIVE);
-        if (hits > 0) {
-            score += 2 + hits;
-            notes.push("tech depth with architecture detail");
-        } else if (sharedNeg > 0) {
             score += 0 - 2;
-            notes.push("missing how it works");
+            notes.push("flat pitch, low warmth");
         }
-    }
-
-    if (agentId === "sofia") {
-        const hits = countHits(lower, SOFIA_POSITIVE);
-        if (hits > 0) {
-            score += 2 + hits;
-            notes.push("unit economics and cost clarity");
-        } else if (hasNumber === false) {
-            score += 0 - 3;
-            notes.push("no numbers for math check");
+        if (hasNumber) {
+            score += 1;
+            notes.push("traction hint helps");
         }
-    }
-
-    if (agentId === "marcus") {
-        const hits = countHits(lower, MARCUS_POSITIVE);
-        if (hits > 0) {
-            score += 2 + hits;
-            notes.push("revenue, moat, or market sized");
-        } else if (sharedNeg > 0) {
-            score += 0 - 2;
-            notes.push("no moat or market proof");
+        if (sharedNeg > 0) {
+            score += 0 - (1 + sharedNeg);
+            notes.push("vague phrasing cools warmth");
         }
     }
 
     let delta;
     let reason;
     if (score > 0) {
-        const scaled = Math.round((DELTA_MIN + score) * sensitivity);
-        delta = clampDelta(scaled);
-        reason = "Plus " + String(delta) + ": " + notes.slice(0, 2).join(", ");
+        if (score < upThreshold) {
+            delta = 0 - DELTA_MIN;
+            reason = "Minus " + String(DELTA_MIN) + ": below yes bar, add specifics";
+        } else {
+            const scaled = Math.round((DELTA_MIN + score) * upSensitivity);
+            delta = clampDelta(scaled);
+            reason = "Plus " + String(delta) + ": " + notes.slice(0, 2).join(", ");
+        }
     } else if (score < 0) {
-        const scaled = Math.round((DELTA_MIN + Math.abs(score)) * sensitivity);
+        const scaled = Math.round((DELTA_MIN + Math.abs(score)) * downSensitivity);
         delta = clampDelta(0 - scaled);
         reason = "Minus " + String(Math.abs(delta)) + ": " + notes.slice(0, 2).join(", ");
     } else {
@@ -168,20 +257,14 @@ function clampStartScore(value, fallback) {
 
 export function createConfidenceEngine(startScores) {
     const base = startScores || START_SCORES;
-    return {
-        scores: {
-            marcus: clampStartScore(base.marcus, 50),
-            priya: clampStartScore(base.priya, 50),
-            leo: clampStartScore(base.leo, 50),
-            sofia: clampStartScore(base.sofia, 50),
-        },
-        outcome: {
-            marcus: null,
-            priya: null,
-            leo: null,
-            sofia: null,
-        },
-    };
+    const scores = {};
+    const outcome = {};
+    for (let i = 0; i < AGENT_ORDER.length; i += 1) {
+        const id = AGENT_ORDER[i];
+        scores[id] = clampStartScore(base[id], 50);
+        outcome[id] = null;
+    }
+    return { scores, outcome };
 }
 
 export function scoreTurn(text, state) {
@@ -189,19 +272,27 @@ export function scoreTurn(text, state) {
     const lower = input.toLowerCase();
     const hasNumber = NUMBER_PATTERN.test(input);
     void state;
-    return {
-        marcus: scoreOneAgent("marcus", lower, hasNumber),
-        priya: scoreOneAgent("priya", lower, hasNumber),
-        leo: scoreOneAgent("leo", lower, hasNumber),
-        sofia: scoreOneAgent("sofia", lower, hasNumber),
-    };
+    const results = {};
+    for (let i = 0; i < AGENT_ORDER.length; i += 1) {
+        const id = AGENT_ORDER[i];
+        results[id] = scoreOneAgent(id, lower, hasNumber, input.length);
+    }
+    return results;
+}
+
+function dealFor(agentId) {
+    const persona = PERSONAS[agentId];
+    const profile = persona ? persona.dealProfile : null;
+    if (profile) {
+        return { dealRank: profile.rank, dealLabel: profile.label };
+    }
+    return { dealRank: 0, dealLabel: "Pending" };
 }
 
 export function apply(state, results) {
     const events = [];
-    const agents = ["marcus", "priya", "leo", "sofia"];
-    for (let i = 0; i < agents.length; i += 1) {
-        const id = agents[i];
+    for (let i = 0; i < AGENT_ORDER.length; i += 1) {
+        const id = AGENT_ORDER[i];
         if (state.outcome[id] !== null) {
             continue;
         }
@@ -218,13 +309,14 @@ export function apply(state, results) {
             next = OFFER_AT;
         }
         state.scores[id] = next;
+        const deal = dealFor(id);
         if (next <= LEAVE_AT && state.outcome[id] === null) {
             state.outcome[id] = "leave";
-            events.push({ type: "leave", agentId: id, score: next, reason: entry.reason });
+            events.push({ type: "leave", agentId: id, score: next, reason: entry.reason, dealRank: deal.dealRank, dealLabel: deal.dealLabel });
         }
         if (next >= OFFER_AT && state.outcome[id] === null) {
             state.outcome[id] = "offer";
-            events.push({ type: "offer", agentId: id, score: next, reason: entry.reason });
+            events.push({ type: "offer", agentId: id, score: next, reason: entry.reason, dealRank: deal.dealRank, dealLabel: deal.dealLabel });
         }
     }
     return events;

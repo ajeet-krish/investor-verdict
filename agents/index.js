@@ -1,4 +1,4 @@
-import { START_SCORES } from "./config.js";
+import { PERSONAS, START_SCORES } from "./config.js";
 import { createEmitter } from "./event-emitter.js";
 import { apply, createConfidenceEngine, scoreTurn } from "./confidence-engine.js";
 import { createMockClient } from "./mock-client.js";
@@ -25,6 +25,17 @@ export function createInvestorCall(options) {
         return { ...engineState.scores };
     }
 
+    function withDeal(evt) {
+        const persona = PERSONAS[evt.agentId];
+        if (evt.dealRank !== undefined && evt.dealLabel !== undefined) {
+            return evt;
+        }
+        if (persona && persona.dealProfile) {
+            return { ...evt, dealRank: persona.dealProfile.rank, dealLabel: persona.dealProfile.label };
+        }
+        return { ...evt, dealRank: 0, dealLabel: "Pending" };
+    }
+
     function handleUserText(text) {
         const input = String(text || "");
         if (!input.trim()) {
@@ -34,7 +45,7 @@ export function createInvestorCall(options) {
         const events = apply(engineState, results);
         bus.emit("score", { scores: currentScores(), results, input });
         for (let i = 0; i < events.length; i += 1) {
-            const evt = events[i];
+            const evt = withDeal(events[i]);
             if (evt.type === "leave") {
                 bus.emit("leave", evt);
             }

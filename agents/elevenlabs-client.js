@@ -1,4 +1,9 @@
+import { AGENT_ORDER } from "./config.js";
+
 const COOLDOWN_MS = 2000;
+const DEDUPE_MS = 2500;
+const STALE_MS = 12000;
+const MAX_REPLIES_PER_TURN = 2;
 
 export function createLiveClient(options) {
     const opts = options || {};
@@ -10,7 +15,6 @@ export function createLiveClient(options) {
     const onStatus = opts.onStatus || function noopStatus() {};
     const onError = opts.onError || function noopError() {};
 
-    const agentKeys = ["marcus", "priya", "leo", "sofia"];
     const sessions = new Map();
     let micStream = null;
     let running = false;
@@ -21,6 +25,13 @@ export function createLiveClient(options) {
     let ConversationRef = null;
     let activeAgentHint = null;
     let flushTimerIds = [];
+    let founderTurn = 0;
+    let repliesThisTurn = 0;
+    let roundRobinIdx = 0;
+    let lastUserNorm = "";
+    let lastUserAt = 0;
+    let primaryAgentId = null;
+    let pendingAddressed = null;
 
     function scheduleFlush(delayMs) {
         const timerId = setTimeout(function flushTick() {
@@ -41,12 +52,68 @@ export function createLiveClient(options) {
         return Date.now();
     }
 
+    function normalize(text) {
+        return String(text || "").toLowerCase().replace(/\s+/g, " ").trim();
+    }
+
+    function detectAddressed(inputLower) {
+        for (let i = 0; i < AGENT_ORDER.length; i += 1) {
+            const id = AGENT_ORDER[i];
+            const spaced = id.replace(/_/g, " ");
+            if (inputLower.includes(id) || inputLower.includes(spaced)) {
+                return id;
+            }
+        }
+        return null;
+    }
+
+    function shouldDropUserDuplicate(norm) {
+        const at = now();
+        if (norm === "" ) {
+            return true;
+        }
+        if (norm === lastUserNorm && at - lastUserAt < DEDUPE_MS) {
+            lastUserNorm = norm;
+            lastUserAt = at;
+            return true;
+        }
+        lastUserNorm = norm;
+        lastUserAt = at;
+        return false;
+    }
+
+    function pruneStaleQueue() {
+        const at = now();
+        speakQueue = speakQueue.filter(function fresh(entry) {
+            return at - entry.at < STALE_MS;
+        });
+    }
+
+    function sortQueueByPriority() {
+        speakQueue.sort(function byPriority(a, b) {
+            const aAddr = a.agentId === pendingAddressed ? 1 : 0;
+            const bAddr = b.agentId === pendingAddressed ? 1 : 0;
+            if (aAddr !== bAddr) {
+                return bAddr - aAddr;
+            }
+            const aDelta = Number(a.delta) || 0;
+            const bDelta = Number(b.delta) || 0;
+            if (aDelta !== bDelta) {
+                return bDelta - aDelta;
+            }
+            return a.seq - b.seq;
+        });
+    }
+
     function canSpeak(agentId) {
         void agentId;
         if (activeSpeaker !== null) {
             return false;
         }
         if (now() - lastSpokeAt < COOLDOWN_MS) {
+            return false;
+        }
+        if (repliesThisTurn >= MAX_REPLIES_PER_TURN) {
             return false;
         }
         return true;
@@ -118,6 +185,7 @@ export function createLiveClient(options) {
     }
 
     function flushQueue() {
+        pruneStaleQueue();
         if (activeSpeaker !== null) {
             return;
         }
@@ -128,22 +196,55 @@ export function createLiveClient(options) {
             scheduleFlush(COOLDOWN_MS);
             return;
         }
+        if (repliesThisTurn >= MAX_REPLIES_PER_TURN) {
+            speakQueue = [];
+            return;
+        }
+        sortQueueByPriority();
         const next = speakQueue.shift();
-        setSpeaking(next.agentId, true);
+        if (next) {
+            setSpeaking(next.agentId, true);
+        }
         applyAudioGate();
+    }
+
+    function requestSpeech(agentId, detail) {
+        const info = detail || {};
+        pruneStaleQueue();
+        for (let i = 0; i < speakQueue.length; i += 1) {
+            if (speakQueue[i].agentId === agentId) {
+                speakQueue[i].delta = Number(info.delta) || speakQueue[i].delta || 0;
+                if (info.addressed) {
+                    speakQueue[i].addressed = true;
+                }
+                speakQueue[i].at = now();
+                return true;
+            }
+        }
+        if (repliesThisTurn >= MAX_REPLIES_PER_TURN) {
+            return false;
+        }
+        speakQueue.push({
+            agentId,
+            at: now(),
+            seq: roundRobinIdx,
+            delta: Number(info.delta) || 0,
+            addressed: Boolean(info.addressed),
+        });
+        roundRobinIdx += 1;
+        return true;
     }
 
     function setSpeaking(agentId, speaking) {
         if (speaking) {
             if (canSpeak(agentId) === false) {
-                if (speakQueue.some(function has(entry) { return entry.agentId === agentId; }) === false) {
-                    speakQueue.push({ agentId, at: now() });
-                }
+                requestSpeech(agentId, { addressed: agentId === pendingAddressed, delta: 0 });
                 applyAudioGate();
                 return;
             }
             activeSpeaker = agentId;
             lastSpokeAt = now();
+            repliesThisTurn += 1;
             speakQueue = speakQueue.filter(function keep(entry) { return entry.agentId !== agentId; });
             onSpeaking({ agentId, speaking: true, at: now() });
             applyAudioGate();
@@ -169,6 +270,13 @@ export function createLiveClient(options) {
         if (isFinal === false) {
             return;
         }
+        const norm = normalize(text);
+        if (shouldDropUserDuplicate(norm)) {
+            return;
+        }
+        founderTurn += 1;
+        repliesThisTurn = 0;
+        pendingAddressed = detectAddressed(norm);
         if (activeSpeaker !== null) {
             const interrupted = activeSpeaker;
             activeSpeaker = null;
@@ -177,6 +285,13 @@ export function createLiveClient(options) {
             scheduleFlush(COOLDOWN_MS);
         }
         onTranscript({ speaker: "user", text: String(text), at: now() });
+    }
+
+    function handleUserTextFromSession(sourceAgentId, text, isFinal) {
+        if (primaryAgentId !== null && sourceAgentId !== primaryAgentId) {
+            return;
+        }
+        handleUserText(text, isFinal);
     }
 
     async function loadSdk() {
@@ -215,6 +330,7 @@ export function createLiveClient(options) {
             }
         }
         sessions.clear();
+        primaryAgentId = null;
         applyAudioGate();
     }
 
@@ -233,7 +349,7 @@ export function createLiveClient(options) {
                 const kind = msg && (msg.type || msg.source || "");
                 const text = (msg && (msg.text || msg.message || "")) || "";
                 if (kind === "user_transcript" || msg.isFinal === true || kind === "user") {
-                    handleUserText(text, msg.isFinal !== false);
+                    handleUserTextFromSession(agentId, text, msg.isFinal !== false);
                 } else if (kind === "agent_response" || kind === "agent") {
                     handleAgentText(agentId, text);
                 } else if (text) {
@@ -256,6 +372,9 @@ export function createLiveClient(options) {
             },
         });
         sessions.set(agentId, session);
+        if (primaryAgentId === null) {
+            primaryAgentId = agentId;
+        }
         applyAudioGate();
     }
 
@@ -268,10 +387,11 @@ export function createLiveClient(options) {
         try {
             const Conversation = await loadSdk();
             await resolveMic();
-            const usable = agentKeys.filter(function hasId(k) { return Boolean(agentIds[k]); });
+            const usable = AGENT_ORDER.filter(function hasId(k) { return Boolean(agentIds[k]); });
             if (usable.length === 0) {
                 throw new Error("Missing agentIds map, provide 4 public agent IDs");
             }
+            primaryAgentId = null;
             for (let i = 0; i < usable.length; i += 1) {
                 const key = usable[i];
                 await startOneSession(Conversation, key, agentIds[key]);
@@ -316,6 +436,7 @@ export function createLiveClient(options) {
             }
         }
         sessions.clear();
+        primaryAgentId = null;
         if (micStream) {
             try {
                 const tracks = micStream.getTracks();
@@ -332,6 +453,7 @@ export function createLiveClient(options) {
 
     function setActiveAgent(agentId) {
         activeAgentHint = agentId;
+        pendingAddressed = agentId;
         onStatus({ agentId, status: "active_hint", at: now() });
     }
 
@@ -373,8 +495,8 @@ export function createLiveClient(options) {
     }
 
     function getState() {
-        return { running, activeSpeaker, activeAgentHint, sessionCount: sessions.size, retryCount };
+        return { running, activeSpeaker, activeAgentHint, sessionCount: sessions.size, retryCount, founderTurn, repliesThisTurn, queueLength: speakQueue.length };
     }
 
-    return { start, stop, setActiveAgent, sendUserText, getState };
+    return { start, stop, setActiveAgent, sendUserText, requestSpeech, getState };
 }
