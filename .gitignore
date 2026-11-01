@@ -1,0 +1,38 @@
+# Node
+node_modules/
+dist/
+build/
+.next/
+out/
+*.log
+
+# Python and uv
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.uv/
+uv.lock
+
+# Env and secrets (ElevenLabs keys live here, never commit)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Misc build output
+coverage/
+*.tgz
