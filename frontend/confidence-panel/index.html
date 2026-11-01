@@ -89,15 +89,16 @@
       </div>
     </div>
     <aside class="tips" id="tips" aria-label="Reply coach">
-      <div class="tips-head">Your next reply</div>
+      <div class="tips-head">Choose your next input</div>
       <p class="coach-caption">Suggestions from your conversation. Review before sending.</p>
       <label class="coach-auto"><input id="coach-auto" type="checkbox" checked /> Suggest after each round</label>
-      <p id="coach-status" class="coach-status" role="status">Send a pitch or speak to get a suggested reply.</p>
+      <p id="coach-status" class="coach-status" role="status">Pick an opening below. Edit it, then add it to chat.</p>
       <div class="focus">
         <span class="focus-label">What to address</span>
         <p id="coach-focus"></p>
-        <label for="coach-draft">Suggested reply</label>
-        <textarea id="coach-draft" rows="4" maxlength="1800" placeholder="Your suggested answer will appear here."></textarea>
+        <div id="coach-options" class="coach-options" aria-label="Suggested inputs"></div>
+        <label for="coach-draft">Edit your chosen input</label>
+        <textarea id="coach-draft" rows="4" maxlength="1800" placeholder="Choose an input above, or write your own."></textarea>
         <button id="coach-use" type="button" disabled>Add to chat</button>
       </div>
       <details class="coach-notes">

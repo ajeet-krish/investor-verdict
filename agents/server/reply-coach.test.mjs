@@ -5,7 +5,7 @@ import { createReplyCoach } from './reply-coach.mjs';
 import { createApiServer } from './app.mjs';
 import { createAgentBridge } from './agent-bridge.mjs';
 const env = { openai_key: 'private-coach-test-value' };
-const answer = { summary: 'The panel asked about customers.', focus: 'Say what you know.', suggestedReply: 'We have [number] customers so far.' };
+const answer = { summary: 'The panel asked about customers.', focus: 'Say what you know.', suggestions: [{label:'Direct',reply:'We have [number] customers so far.'},{label:'Next step',reply:'I will check customer usage.'},{label:'Clarify',reply:'Which customer group matters most to you?'}] };
 const response = () => ({ ok: true, json: async () => ({ status: 'completed', output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify(answer) }] }] }) });
 const context = { revision: 2, busy: false, history: [{ founder: 'Five people tested our demo.', responses: [{ role: 'market_signals_researcher', reply: 'Who pays?' }] }], lastResult: { responses: [{ panelist: 'The VP', reason: 'private scoring rationale', pendingConcern: { text: 'Who pays?' } }] } };
 
@@ -32,7 +32,7 @@ test('missing key, stale rounds and oversized notes do not call the provider', a
   const fetchImpl = async () => { calls++; return response(); };
   await assert.rejects(createReplyCoach({ env: {}, fetchImpl }).recommend('r', context, { revision: 2 }), { status: 503 });
   const coach = createReplyCoach({ env, fetchImpl });
-  for (const [state, body, status] of [[context,{revision:1},409],[{...context,busy:true},{revision:2},409],[context,{revision:2,note:'a'.repeat(1001)},400],[{...context,history:[]},{revision:2},409]]) {
+  for (const [state, body, status] of [[context,{revision:1},409],[{...context,busy:true},{revision:2},409],[context,{revision:2,note:'a'.repeat(1001)},400]]) {
     await assert.rejects(coach.recommend('r', state, body), { status });
   }
   assert.equal(calls, 0); coach.close();
@@ -83,4 +83,20 @@ test('HTTP coach requires room ownership and rejects results from a reset conver
   while(!release)await new Promise(r=>setTimeout(r,5));
   bridge.reset(room);release();
   const res=await pending;assert.equal(res.status,409);assert.equal(res.headers.get('cache-control'),'no-store');
+});
+
+test('coach can tailor opening options before any founder message',async()=>{
+  let sent;
+  const coach=createReplyCoach({env,fetchImpl:async(_url,options)=>{sent=JSON.parse(options.body);return response();}});
+  const opening=await coach.recommend('new-room',{revision:0,busy:false,history:[],lastResult:null},{revision:0,note:'An app for university startup clubs.'});
+  assert.equal(opening.suggestions.length,3);
+  assert.deepEqual(JSON.parse(sent.input).conversation,[]);
+  assert.equal(JSON.parse(sent.input).founderNote,'An app for university startup clubs.');
+  coach.close();
+});
+
+test('invalid or missing option lists are rejected without an automatic retry',async()=>{
+  let calls=0;
+  const coach=createReplyCoach({env,fetchImpl:async()=>{calls++;return{ok:true,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({...answer,suggestions:[]})}]}]})};}});
+  await assert.rejects(coach.recommend('r',context,{revision:2}),{status:502});assert.equal(calls,1);coach.close();
 });

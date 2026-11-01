@@ -116,3 +116,7 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 #coach-transcript:empty::before{content:"Your text, voice transcript and investor replies will appear here.";color:var(--ink2)}
 .coach-interim{font-size:12px;color:#1f6b3b;line-height:1.5}
 .coach-interim:empty{display:none}
+
+.coach-options{display:flex;flex-direction:column;gap:8px;margin:10px 0 14px}
+.tips .coach-options button{white-space:pre-line;text-align:left;line-height:1.5;padding:10px;font-size:12px}
+.tips .coach-options button[aria-pressed="true"]{background:#e4f4e9;border-color:#1f8f4a}

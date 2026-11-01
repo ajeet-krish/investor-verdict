@@ -107,7 +107,7 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
           replyAudio?.reset(sessionId);
           await textPanel.reset(sessionId);
           addCookie('verdict_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
-          return send(200, { scores: [50, 50, 50, 50] });
+          return send(200, { scores: [50, 50, 50, 50], ...(agentBridge ? { bridgeRevision: agentBridge.ownerContext(roomId).revision } : {}) });
         }
         let raw = '';
         for await (const chunk of req) {

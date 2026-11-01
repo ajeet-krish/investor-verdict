@@ -129,3 +129,11 @@ The route requires the same browser room cookie and current revision, rejects cr
 Validation: 60 automated tests pass, production build passes, free coach/bridge HTTP smoke checks pass. Two actual OpenAI calls used the recorded fictional practice transcript: the first exposed a speculative draft, so instructions were tightened; the second produced a brief acknowledgement of unknown measurements and customer motivation, without inventing evidence. Identical repeat requests returned the cached result. No browser/computer control was used for this feature; visual layout and microphone device behavior were not rechecked.
 
 Commands: `npm run test:coach` uses an explicit offline fixture; `npm run test:coach:live` uses the real OpenAI key and consumes API credits. [Structured output API reference](https://developers.openai.com/api/docs/guides/structured-outputs).
+
+## Inputs available from the start
+
+The coach now shows three editable opening choices immediately, before any pitch or API request: introduce the idea, explain the problem, or ask for guidance. These initial templates use placeholders rather than fabricated business facts. Reset restores the choices. `/api/reset` returns the current `bridgeRevision`, allowing the founder to add a coach note and request tailored opening options before the first investor round.
+
+OpenAI recommendations now return `suggestions: [{label, reply}, ...]` with exactly three varied inputs, alongside summary/focus/revision. After a panel round, choices offer distinct approaches rather than a single draft. Choosing an option fills the editable draft; Add to chat remains a separate action and never auto-submits. Existing cancellation, human takeover, caching and credential rules remain unchanged.
+
+Validation: 64 tests and the build pass, including immediate opening choices without network access, reset behavior, choosing alternatives, empty-history coach requests and malformed option rejection. `npm run test:coach:live -- --opening` validates tailored opening suggestions against OpenAI without computer use.

@@ -449,11 +449,12 @@ function main(): void {
     notice = "";
     renderStatus();
     try {
-      const result = await post("/reset", {}) as { scores?: unknown } | null;
+      const result = await post("/reset", {}) as { scores?: unknown; bridgeRevision?: number } | null;
       if (!result || !Array.isArray(result.scores) || result.scores.length !== 4 || !result.scores.every(s => s === 50)) {
         throw new Error("The session could not be reset. Please try again.");
       }
       bridge?.reset();
+      coach?.reset(result.bridgeRevision);
       panel.forEach(p => (p.score = 50));
       lastTurn = 0;
       draw();
