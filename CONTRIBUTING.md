@@ -1,7 +1,5 @@
 # Contributing: investor-verdict hackathon workflow
 
-This is a 3 person sprint. Speed matters. Keep branches small and merge fast.
-
 ## Branch naming
 
 * Frontend: `feat/frontend/short-task`
