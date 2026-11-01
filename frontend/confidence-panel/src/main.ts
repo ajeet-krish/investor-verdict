@@ -43,6 +43,19 @@ const SEEDS: Seed[] = [
   { role: "sympathizer", name: "The Sympathizer", bg: "#332a1c", score: 50, photo: "/investors/04_sympathizer_zoom.png" },
 ];
 
+const TIPS: string[] = [
+  "Speak a little slower than normal.",
+  "Pause for 1\u20132 seconds after a question.",
+  "Use clear, simple language.",
+  "Show energy in your voice.",
+  "Finish sentences confidently.",
+  "Look at the camera, not the screen, when you speak.",
+  "Sit upright, shoulders relaxed, slightly forward.",
+  "Use small, natural gestures.",
+  "Nod and react naturally.",
+  "Avoid looking around or multitasking.",
+];
+
 // The root launcher proxies this same-origin API; never put credentials in VITE variables.
 const API_URL: string = import.meta.env.VITE_API_URL || "/api";
 
@@ -489,6 +502,39 @@ function main(): void {
     seconds++;
     timer.textContent = `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor((seconds % 3600) / 60))}:${pad(seconds % 60)}`;
   }, 1000);
+
+  /* live coach tips */
+  const layout = must<HTMLElement>(document, ".layout");
+  const tipsEl = must<HTMLElement>(document, "#tips");
+  const tipsBtn = must<HTMLButtonElement>(document, "#tipsbtn");
+  const tipList = must<HTMLElement>(document, "#tip-list");
+  const focusText = must<HTMLElement>(document, "#focus-text");
+  let tipIndex = 0;
+
+  TIPS.forEach((t) => {
+    const li = document.createElement("li");
+    li.textContent = t;
+    tipList.appendChild(li);
+  });
+  const showTip = (): void => {
+    focusText.textContent = TIPS[tipIndex];
+    Array.from(tipList.children).forEach((li, i) => li.classList.toggle("now", i === tipIndex));
+  };
+  const nextTip = (): void => {
+    tipIndex = (tipIndex + 1) % TIPS.length;
+    showTip();
+  };
+  must<HTMLButtonElement>(document, "#next-tip").addEventListener("click", nextTip);
+  tipsBtn.addEventListener("click", () => {
+    const open = tipsBtn.getAttribute("aria-pressed") !== "true";
+    tipsBtn.setAttribute("aria-pressed", String(open));
+    tipsEl.hidden = !open;
+    layout.classList.toggle("no-tips", !open);
+  });
+  setInterval(() => {
+    if (!app.hidden) nextTip();
+  }, 10000);
+  showTip();
 
   draw();
 }

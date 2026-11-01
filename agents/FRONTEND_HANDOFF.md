@@ -11,11 +11,15 @@ See [CODING_AGENT_PIPELINE.md](../docs/CODING_AGENT_PIPELINE.md). The app now ow
 
 ## Latest pull and visible scores
 
-On November 1, fetched all remote branches, fast-forward checked `test/investor-integration`, and merged `origin/main` at `00130b0` into this test branch. The incoming main changes were documentation/environment examples only; no newer frontend layout was published in the fetched branches. The original dirty `investor-verdict` checkout was left untouched.
+On November 1, fetched `origin/Working_MVP` (case-sensitive branch name) at `c12082c` and integrated its frontend changes into `test/investor-integration`. The wider two-column panel and coaching sidebar now use the existing real investor, voice and coding-agent pipeline. Earlier, `origin/main` at `00130b0` was merged for documentation changes. The original dirty `investor-verdict` checkout was left untouched.
+
+Only the three frontend files were imported from `Working_MVP`, without importing that commit into the branch ancestry: its tracked environment examples expose an ElevenLabs credential. Those changes were excluded; the exposed key still needs revocation/replacement by its owner. Never copy that branch's environment examples into a real environment.
+
+The sidebar cycles preset delivery tips every ten seconds and supports Next tip and Tips visibility controls; these are static coaching prompts, not an AI analysis of the pitch. The incoming hidden practice-choice markup remains inactive because there is no hiring-panel backend. The investor start flow remains active. The tiles stack on narrow screens so confidence badges remain readable.
 
 The available frontend now shows a persistent **score out of 100** on every investor tile, with the latest turn's positive, negative or unchanged delta. These are the authoritative `/api/evaluate` values for text, voice and coding-agent submissions. Scores stay visible when photos are hidden; initial/reset state is 50 with no stale delta. Each badge is an accessible meter, and terminal labels remain Passed/Simulated offer.
 
-Validation: TypeScript/build and all 50 tests pass. Browser verification showed all four scores at 50/100, both with and without portraits. The app is left open for the user's live test at http://127.0.0.1:5173. No paid investor call was made for this display change. Screenshot: `agents/confidence-scores-ready.png`.
+Validation: TypeScript/build, all 50 tests, `npm run test:panel` and `npm run test:bridge` pass. Browser verification showed the integrated layout, Next tip and Tips toggle, and all four scores at 50/100 with and without portraits. The app is left open for the user's live test at http://127.0.0.1:5173. No paid investor call was made for this frontend integration. Screenshot: `agents/working-mvp-integration.png`.
 
 ## Current behavior
 

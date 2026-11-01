@@ -18,11 +18,28 @@
     <button class="start" id="start" type="button">Click here to get started</button>
   </section>
 
+  <section class="choose" id="choose" hidden>
+    <h1>What are you practising for?</h1>
+    <p class="lead">Pick the kind of panel you'll face.</p>
+    <div class="options">
+      <button class="opt" type="button" data-mode="job">
+        <strong>Job interview</strong>
+        <span>Face a hiring panel</span>
+      </button>
+      <button class="opt" type="button" data-mode="investor">
+        <strong>Investor interview</strong>
+        <span>Pitch to a panel of investors</span>
+      </button>
+    </div>
+    <button class="back" id="back" type="button">Back</button>
+  </section>
+
   <div class="app" id="app" hidden>
     <h1>Verdict</h1>
-    <p class="sub">Type a pitch or start live audio with the microphone. One investor responds at a time.</p>
+    <p class="sub">Pitch to the panel by typing or speaking. Each panelist scores how confident they are.</p>
+    <div class="layout">
     <div class="z">
-      <div class="bar"><span><span class="rec"></span>Investment panel</span><span id="timer">00:14:32</span></div>
+      <div class="bar"><span><span class="rec"></span><span id="mode-label">Investment panel</span></span><span id="timer">00:14:32</span></div>
       <div class="g" id="grid"></div>
 
       <div class="chatbox" id="chatbox">
@@ -66,9 +83,20 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14" /></svg>
           <span id="freeze-label" style="margin-left:8px">Freeze scores</span>
         </button>
+        <button id="tipsbtn" type="button" aria-pressed="true">Tips</button>
         <button id="reset" type="button">Reset</button>
         <button class="lv" id="leave" type="button">Leave</button>
       </div>
+    </div>
+    <aside class="tips" id="tips" aria-label="Live coaching tips">
+      <div class="tips-head">Coach</div>
+      <div class="focus" aria-live="polite">
+        <span class="focus-label">Focus now</span>
+        <p id="focus-text"></p>
+        <button id="next-tip" type="button">Next tip</button>
+      </div>
+      <ul id="tip-list"></ul>
+    </aside>
     </div>
     <p class="note">Photos stay on this device only and are never uploaded.</p>
   </div>
