@@ -36,3 +36,6 @@ Thumbs.db
 # Misc build output
 coverage/
 *.tgz
+
+# Per-coder live-app connection capability, never commit.
+.verdict-agent*.json

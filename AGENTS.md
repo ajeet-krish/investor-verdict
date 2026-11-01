@@ -1,5 +1,8 @@
 # investor-verdict
 
+## Coding agents in the live app
+Read [agents/CODING_AGENT_HANDOFF.md](agents/CODING_AGENT_HANDOFF.md) and [docs/CODING_AGENT_PIPELINE.md](docs/CODING_AGENT_PIPELINE.md). The coder approves once in the live app, then a connected coding agent can send founder drafts with `npm run agent:suggest` and read actual investor replies with `agent:wait`. Typing or starting voice pauses automatic agent control. Never impersonate investors, bypass Pause/Disconnect, or commit `.verdict-agent.local.json`. Run `npm run test:bridge` for the free CLI-to-app regression.
+
 ## Audio test branch
 On `test/investor-integration`, read [docs/REALTIME_AUDIO_TEST.md](docs/REALTIME_AUDIO_TEST.md) first. This local experiment adds real-time microphone transcription and sequential streamed speech for at most two willing investors per founder message. The main-branch completion report below describes the earlier text-only baseline. Do not merge or deploy this audio experiment without a user request.
 

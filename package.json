@@ -11,7 +11,14 @@
     "build": "node agents/server/build.mjs",
     "test": "node --experimental-strip-types --test agents/server/*.test.mjs visuals/confidence/interest-controller.test.mjs",
     "test:panel": "node agents/testing/run-panel.mjs",
-    "test:panel:live": "node --env-file=.env agents/testing/run-panel.mjs --live"
+    "test:panel:live": "node --env-file=.env agents/testing/run-panel.mjs --live",
+    "agent:connect": "node agents/bridge/client.mjs connect",
+    "agent:context": "node agents/bridge/client.mjs context",
+    "agent:suggest": "node agents/bridge/client.mjs suggest",
+    "agent:result": "node agents/bridge/client.mjs result",
+    "agent:wait": "node agents/bridge/client.mjs wait",
+    "test:bridge": "node agents/testing/bridge-smoke.mjs",
+    "test:bridge:live": "node --env-file=.env agents/testing/bridge-smoke.mjs --live"
   },
   "dependencies": {
     "@elevenlabs/client": "1.32.1",

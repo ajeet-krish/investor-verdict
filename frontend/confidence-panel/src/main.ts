@@ -1,4 +1,6 @@
 import "./style.css";
+import { createAgentBridgeUI } from "./agent-bridge";
+import type { AgentSubmission } from "./agent-bridge";
 import { createRealtimeVoice } from "./realtime-voice";
 import type { VoiceState } from "./realtime-voice";
 import { createReplyPlayer } from "./reply-player";
@@ -12,6 +14,7 @@ interface Evaluation {
   responses: { role: InvestorRole; panelist: string; reply: string; spoke: boolean }[];
   speakingOrder: InvestorRole[];
   turn: number;
+  bridgeRevision?: number;
 }
 
 interface Seed {
@@ -74,8 +77,8 @@ async function post(path: string, body: unknown): Promise<unknown> {
   return data;
 }
 
-async function evaluate(pitch: string, current: number[]): Promise<Evaluation> {
-  const raw = await post("/evaluate", { pitch, panelists: SEEDS.map(s => s.name), scores: current });
+async function evaluate(pitch: string, current: number[], job?: AgentSubmission): Promise<Evaluation> {
+  const raw = await post("/evaluate", { pitch, panelists: SEEDS.map(s => s.name), scores: current, ...(job ? { bridgeJobId: job.id, bridgeAuto: job.automatic } : {}) });
   if (!raw || typeof raw !== "object") throw new Error("Unexpected investor response.");
   const data = raw as Evaluation;
   if (!Array.isArray(data.scores) || data.scores.length !== SEEDS.length ||
@@ -228,6 +231,7 @@ function main(): void {
   let voiceState: VoiceState = 'off';
   let audioPlaying = false;
   let audioGeneration = 0;
+  let bridge: ReturnType<typeof createAgentBridgeUI> | undefined;
   let speakingName = '';
   const player = createReplyPlayer(replyAudio, () => showNotice('Press play to hear the investor, or Skip reply to continue.'));
   const setBusy = (value: boolean): void => {
@@ -235,6 +239,7 @@ function main(): void {
     for (const control of [send, startBtn, promptInput]) control.disabled = value;
     resetBtn.disabled = leaveBtn.disabled = value && !audioPlaying;
     micBtn.disabled = value && voiceState === 'off';
+    bridge?.refresh();
   };
   const showSpeaker = (role: InvestorRole | null): void => {
     panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
@@ -280,10 +285,11 @@ function main(): void {
   };
 
   /* One request at a time; no queued requests can leak into a new pitch. */
-  const judge = async (text: string): Promise<void> => {
+  const judge = async (text: string, job?: AgentSubmission): Promise<void> => {
     setBusy(true);
     const current = epoch;
     const currentAudio = audioGeneration;
+    let bridgeRevision: number | undefined;
     voice.pause();
     player.stop();
     replyAudio.hidden = true;
@@ -292,7 +298,8 @@ function main(): void {
     renderStatus();
     try {
       let before = panel.map(p => p.score);
-      const result = await evaluate(text, before);
+      const result = await evaluate(text, before, job);
+      bridgeRevision = result.bridgeRevision;
       if (result.turn === 1 && lastTurn > 0) {
         before = panel.map(() => 50);
         addMsg("sys", "Your previous session expired. This pitch starts fresh at 50.");
@@ -330,6 +337,7 @@ function main(): void {
         showSpeaker(null);
         skipAudio.hidden = true;
         replyAudio.hidden = true;
+        await bridge?.ready(bridgeRevision);
         setBusy(false);
         voice.resume();
         renderStatus();
@@ -342,6 +350,7 @@ function main(): void {
     const text = raw.trim();
     if (!text || busy || app.hidden) return;
     if (text.length > 4000) { voice.resume(); showNotice("Please keep your pitch under 4,000 characters."); return; }
+    bridge?.pauseForHuman();
     promptInput.value = "";
     addMsg(via === "voice" ? "you voice" : "you", text);
     void judge(text);
@@ -369,13 +378,23 @@ function main(): void {
     return data.token;
   });
 
+  bridge = createAgentBridgeUI(API_URL, {
+    busy: () => busy, active: () => !app.hidden,
+    notice: showNotice,
+    submit: async (text, job) => {
+      if (busy || app.hidden) return;
+      addMsg('you agent', text);
+      await judge(text, job);
+    },
+  });
+  promptInput.addEventListener('input', () => bridge?.pauseForHuman());
   micBtn.setAttribute('aria-label', 'Start live audio');
   micBtn.addEventListener('click', () => {
     if (voice.enabled) { audioGeneration++; voice.stop(); player.stop(); }
-    else if (!busy) { notice = ''; void voice.start(); }
+    else if (!busy) { bridge?.pauseForHuman(); notice = ''; void voice.start(); }
   });
   skipAudio.addEventListener('click', () => player.stop());
-  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; voice.stop(); player.stop(); });
+  window.addEventListener('pagehide', () => { epoch++; audioGeneration++; bridge?.close(); voice.stop(); player.stop(); });
 
   camBtn.addEventListener("click", () => {
     const on = camBtn.getAttribute("aria-pressed") !== "true";
@@ -410,6 +429,7 @@ function main(): void {
       if (!result || !Array.isArray(result.scores) || result.scores.length !== 4 || !result.scores.every(s => s === 50)) {
         throw new Error("The session could not be reset. Please try again.");
       }
+      bridge?.reset();
       panel.forEach(p => (p.score = 50));
       lastTurn = 0;
       draw();

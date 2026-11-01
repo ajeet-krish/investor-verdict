@@ -72,3 +72,13 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 
 #reply-audio{width:100%;height:36px;margin-top:8px}
 #skip-audio{margin-top:6px;padding:6px 12px;border:0;border-radius:6px;cursor:pointer}
+
+.agent-panel{margin-top:12px;padding:12px;background:#242427;border-radius:10px;font-size:13px}
+.agent-panel summary{cursor:pointer;font-weight:500}
+.agent-panel p{line-height:1.5;color:#cfcfd2}
+.agent-actions{display:flex;gap:8px;flex-wrap:wrap}
+.agent-panel button{padding:8px 12px;border:0;border-radius:6px;background:#3a3a40;color:#fff;font:inherit;cursor:pointer}
+.agent-panel button:disabled{opacity:.5;cursor:default}
+#agent-draft{border-left:3px solid #3fd16a;margin-top:12px;padding-left:10px}
+#agent-draft-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.agent::before{content:"Coding agent · ";color:#80cfa0}

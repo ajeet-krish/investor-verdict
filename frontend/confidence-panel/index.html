@@ -36,6 +36,22 @@
         <button id="skip-audio" type="button" hidden>Skip reply</button>
       </div>
 
+      <details class="agent-panel">
+        <summary>Coding agent collaboration</summary>
+        <p id="agent-status" aria-live="polite"></p>
+        <div class="agent-actions">
+          <button id="agent-connect" type="button">Allow coding agent</button>
+          <button id="agent-copy" type="button" hidden>Copy connection</button>
+          <button id="agent-toggle" type="button" hidden>Pause agent</button>
+          <button id="agent-disconnect" type="button" hidden>Disconnect agent</button>
+        </div>
+        <div id="agent-draft" hidden>
+          <p id="agent-draft-text"></p>
+          <button id="agent-approve" type="button">Send suggestion to investors</button>
+          <button id="agent-reject" type="button">Dismiss suggestion</button>
+        </div>
+      </details>
+
       <div class="tb">
         <button id="mic" type="button" aria-pressed="false" aria-label="Turn microphone on">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /><path class="slash" d="M4 4l16 16" /></svg>

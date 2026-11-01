@@ -5,6 +5,10 @@ To: frontend developer and their coding agent
 Date: November 1, 2026
 Branch: `test/investor-integration`, local experiment, not merged into main
 
+## Coding-agent collaboration
+
+See [CODING_AGENT_PIPELINE.md](../docs/CODING_AGENT_PIPELINE.md). The app now owns the bridge approval and polls for suggestions, then uses the existing evaluation and audio flow. Human typing or starting voice pauses automatic agent control. The backend ties suggestions to the owner cookie and conversation revision. Keep these guards when redesigning the UI.
+
 ## Current behavior
 
 The text baseline was merged through PR #3, closing issue #4. This test branch adds live microphone transcription, streamed investor voices, and multiple voluntary replies per founder message. See [REALTIME_AUDIO_TEST.md](../docs/REALTIME_AUDIO_TEST.md) for setup and validation. Do not merge or deploy this experiment without a user request.

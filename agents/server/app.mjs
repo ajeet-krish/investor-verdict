@@ -8,7 +8,7 @@ export const ENV_IDS = Object.freeze({
   sympathizer: 'ELEVENLABS_AGENT_ID_SYMPATHIZER',
 });
 
-export function createApiServer({ env = process.env, getSignedUrl, textPanel, replyAudio, getVoiceToken }) {
+export function createApiServer({ env = process.env, getSignedUrl, textPanel, replyAudio, getVoiceToken, agentBridge }) {
   const origin = env.APP_ORIGIN || 'http://127.0.0.1:5173';
   const agentIds = Object.fromEntries(Object.entries(ENV_IDS).map(([role, name]) => [role, env[name] || '']));
   let tokenWindow = 0, tokenCount = 0;
@@ -21,6 +21,40 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
     if (req.headers.origin && req.headers.origin !== origin) return send(403, { error: 'Origin not allowed.' });
     if (req.headers['sec-fetch-site'] === 'cross-site') return send(403, { error: 'Cross-site request blocked.' });
     const url = new URL(req.url, 'http://localhost');
+    const cookies = (req.headers.cookie || '').split(';').map(x => x.trim());
+    let roomId = cookies.find(x => x.startsWith('verdict_room='))?.slice('verdict_room='.length);
+    const addCookie = value => res.setHeader('Set-Cookie', [...(res.getHeader('Set-Cookie') || []), value]);
+    const ensureRoom = () => {
+      roomId = agentBridge.ensure(roomId);
+      addCookie(`verdict_room=${roomId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=1800`);
+      return roomId;
+    };
+    const readJson = async () => {
+      if (req.headers['content-type'] !== 'application/json') throw Object.assign(new Error('JSON required.'), { status: 415 });
+      let raw = '';
+      for await (const chunk of req) { raw += chunk; if (raw.length > 20000) throw Object.assign(new Error('Request too large.'), { status: 413 }); }
+      try { return JSON.parse(raw); } catch { throw Object.assign(new Error('Invalid JSON.'), { status: 400 }); }
+    };
+    if (agentBridge && url.pathname.startsWith('/api/agent-bridge')) {
+      try {
+        const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+        if (req.method === 'GET' && url.pathname === '/api/agent-bridge/context') return send(200, agentBridge.agentContext(token));
+        if (req.method === 'GET' && url.pathname === '/api/agent-bridge/job') return send(200, agentBridge.job(token, url.searchParams.get('id')));
+        if (req.method === 'POST' && url.pathname === '/api/agent-bridge/suggest') return send(202, agentBridge.suggest(token, await readJson()));
+        // Agent tokens cannot approve or execute a suggestion. Only the browser-owned cookie can.
+        if (req.method === 'POST' && url.pathname === '/api/agent-bridge/connect') { await readJson(); return send(200, agentBridge.connect(ensureRoom())); }
+        if (req.method === 'GET' && url.pathname === '/api/agent-bridge/session') {
+          const state = agentBridge.ownerContext(roomId);
+          addCookie(`verdict_room=${roomId}; HttpOnly; SameSite=Strict; Path=/; Max-Age=1800`);
+          return send(200, state);
+        }
+        if (req.method === 'POST' && url.pathname === '/api/agent-bridge/mode') { agentBridge.mode(roomId, (await readJson()).autoSend); return send(200, { ok: true }); }
+        if (req.method === 'POST' && url.pathname === '/api/agent-bridge/reject') return send(200, agentBridge.reject(roomId, (await readJson()).id));
+        if (req.method === 'POST' && url.pathname === '/api/agent-bridge/ready') { agentBridge.ready(roomId, (await readJson()).revision); return send(200, { ok: true }); }
+        if (req.method === 'POST' && url.pathname === '/api/agent-bridge/disconnect') { await readJson(); agentBridge.disconnect(roomId); return send(200, { ok: true }); }
+        return send(404, { error: 'Unknown app connection route.' });
+      } catch (error) { return send(error.status || 502, { error: error.status ? error.message : 'App connection failed.' }); }
+    }
     const sessionId = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith('verdict_session='))?.slice('verdict_session='.length);
     if (getVoiceToken && req.method === 'POST' && url.pathname === '/api/voice-token') {
       if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'JSON required.' });
@@ -49,11 +83,14 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
     }
     if (textPanel && req.method === 'POST' && ['/api/evaluate', '/evaluate', '/api/reset'].includes(url.pathname)) {
       if (req.headers['content-type'] !== 'application/json') return send(415, { error: 'JSON required.' });
+      let ticket;
       try {
+        if (agentBridge) ensureRoom();
         if (url.pathname === '/api/reset') {
+          agentBridge?.reset(roomId);
           replyAudio?.reset(sessionId);
           await textPanel.reset(sessionId);
-          res.setHeader('Set-Cookie', 'verdict_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+          addCookie('verdict_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
           return send(200, { scores: [50, 50, 50, 50] });
         }
         let raw = '';
@@ -63,10 +100,13 @@ export function createApiServer({ env = process.env, getSignedUrl, textPanel, re
         }
         let body;
         try { body = JSON.parse(raw); } catch { return send(400, { error: 'Invalid JSON.' }); }
+        if (agentBridge) ticket = agentBridge.begin(roomId, body ?? {});
         const { sessionId: id, result } = await textPanel.evaluate(body, sessionId);
-        res.setHeader('Set-Cookie', `verdict_session=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=120`);
+        if (ticket) result.bridgeRevision = agentBridge.finish(ticket, result);
+        addCookie(`verdict_session=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=120`);
         return send(200, result);
       } catch (error) {
+        if (ticket) agentBridge.fail(ticket);
         return send(error.status || 502, { error: error.status ? error.message : 'Investor evaluation failed.' });
       }
     }

@@ -1,5 +1,7 @@
 # investor-verdict
 
+Coding-agent collaboration on the test branch: [setup and pipeline](docs/CODING_AGENT_PIPELINE.md), [instructions for your coding agent](agents/CODING_AGENT_HANDOFF.md). Approve once in the app, then the coding agent can draft founder replies while the real investor panel responds.
+
 Teams style call where you pitch to 4 live voice investors and survive to term sheet.
 
 ## How to watch demo
