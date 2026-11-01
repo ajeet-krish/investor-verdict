@@ -346,12 +346,20 @@ function main(): void {
         showSpeaker(null);
         skipAudio.hidden = true;
         replyAudio.hidden = true;
-        if (roster.empty) { voice.stop(); bridge?.pauseForHuman(); }
+        if (roster.empty) {
+          voice.stop();
+          bridge?.pauseForHuman();
+          app.hidden = true;
+          welcome.hidden = false;
+          startBtn.textContent = 'Call ended. Start a new pitch';
+          window.scrollTo(0, 0);
+        }
         else await bridge?.ready(bridgeRevision);
         setBusy(false);
         if (!roster.empty) voice.resume();
         renderStatus();
-        promptInput.focus();
+        if (app.hidden) startBtn.focus();
+        else promptInput.focus();
       }
     }
   };
