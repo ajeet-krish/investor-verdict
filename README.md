@@ -1,6 +1,6 @@
 # investor-verdict
 
-Ever dreamed of being a Series A founder raising $5 million? Now you can live out your founder dreams and try to raise funding for your startup idea. Face a panel of investors in a Teams style call, where you pitch to 4 live investors. Every clear answer moves you closer to an offer, while every vague answer may cause an investor to back up entirely.
+Ever dreamed of being a Series A founder raising $5 million? Now you can live out your founder dreams and try to raise funding for your startup idea. Face a panel of investors in a Teams style call, where you pitch to 4 live, conversational agents. Every clear answer moves you closer to an offer, while every vague answer may cause an investor to back up entirely.
 
 ## How it works
 
