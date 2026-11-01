@@ -5,9 +5,11 @@ To: frontend developer and their coding agent
 Date: November 1, 2026
 Backend branch: `feat/agents/text-integration`
 
-## Message for the frontend agent
+## Status: implemented
 
-Please tell your developer that the real ElevenLabs text backend is ready for frontend integration. Read this handoff and `agents/TEXT_INTEGRATION.md` before changing the UI. The requested remaining work is to display the selected investor's reply, indicate that speaker, and connect session reset. The backend branch leaves all `frontend/` source files unchanged. Review the backend draft PR and incorporate its changes into your working branch before testing. Preserve your existing frontend work and resolve any branch conflicts deliberately.
+Arjun authorized connecting the frontend directly with minimal changes. `frontend/confidence-panel/src/main.ts` now renders the selected investor's reply, identifies the responding tile, starts scores at 50, and connects Start/Reset/Leave to backend session reset. Four small CSS rules style the reply, responding tile, and disabled controls. The page layout and portraits are unchanged.
+
+The old hidden heuristic fallback and Freeze control are removed from the live flow. Requests are not queued; input, microphone, Reset and Leave are disabled while a request is pending, preventing old results from entering a new pitch. API errors preserve the founder's text for an explicit retry. The steps below document the implemented contract and acceptance checks, rather than outstanding work for another developer.
 
 Do not implement a fixed speaking order or make all four investors speak. This supersedes earlier fixed-order instructions. Each founder message triggers private bids from active investors, then at most one investor gets the floor. Others may pass, and everyone can stay silent. The backend owns this decision. Confidence can change for investors who did not speak. All four agents currently use `deepseek-v41-flash` through ElevenLabs.
 
@@ -23,7 +25,7 @@ npm --prefix frontend/confidence-panel ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. The launcher sets `VITE_API_URL=/api`, starts the API on loopback port 8787, and loads a Vite proxy overlay outside the frontend. The root build command also sets this API URL. Running the frontend package alone without this configuration falls back to its existing heuristic scoring. Do not use that fallback for live acceptance tests. Never put an ElevenLabs API key or signed URL into frontend source or `VITE_*` variables. No ElevenLabs browser SDK or additional API key is needed for this text integration.
+Open `http://127.0.0.1:5173`. The launcher sets `VITE_API_URL=/api`, starts the API on loopback port 8787, and loads a Vite proxy overlay outside the frontend. The root build command also sets this API URL. The frontend defaults to `/api`; running it without the root launcher requires an equivalent same-origin API proxy. It never silently falls back to heuristic scoring. Never put an ElevenLabs API key or signed URL into frontend source or `VITE_*` variables. No ElevenLabs browser SDK or additional API key is needed for this text integration.
 
 ## Request and response contract
 
@@ -73,7 +75,7 @@ Map roles to the current tiles:
 | `interrogator` | The Interrogator |
 | `sympathizer` | The Sympathizer |
 
-## Frontend changes to make
+## Implemented frontend behavior
 
 The current implementation is in `frontend/confidence-panel/src/main.ts`.
 
@@ -98,4 +100,6 @@ Idle sessions expire after two minutes. The next message then starts fresh at 50
 - Network failures preserve the user's text for explicit retry and do not silently use random scoring.
 - Run `npm test` and `npm run build`, then exercise the actual same-origin API in the browser. Live tests consume ElevenLabs credits; mock responses cover UI edge cases without repeated provider calls.
 
-The backend has 20 passing automated tests and a live three-message test covering speaker changes and all-pass silence. The frontend still needs the changes above. This handoff is not a claim that the chat UI is already complete.
+Validation: 20 automated tests and the TypeScript/Vite production build pass. A real browser pitch displayed the Market Researcher's reply and highlighted only her tile; asking for quiet added no investor message and cleared the highlight. Real Reset and Leave cleared the session. Isolated browser fixtures verified provider errors and malformed responses preserve input without changing scores, terminal labels render correctly, and model text containing HTML is rendered literally. The preview is in `agents/frontend-integration-preview.jpg`.
+
+The root local development flow is verified. The separate Render server and deployment configuration pulled from main are preserved; they have not been wired to these text endpoints or deployed as part of this UI change. Audio output is not implemented.

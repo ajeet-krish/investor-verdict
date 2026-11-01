@@ -25,7 +25,7 @@ The backend shares the last founder/speaker exchange with all investors on the n
 
 Verified against all four live ElevenLabs agent configurations on November 1, 2026: `conversation_config.agent.prompt.llm` is **`deepseek-v41-flash`** for every investor. No custom LLM endpoint is configured. The role prompts now include the conditional protocol from `agents/prompts/turn-taking.md`, synchronized to all four remote agents. The model judges willingness, priority, replies, and proposed confidence; the backend grants exclusive speaking rights and validates scores. The model was not changed. Legacy voice behavior without protocol packets is unchanged; this implementation covers the backend-managed text panel.
 
-No files under `frontend/` were edited. The development launcher supplies `VITE_API_URL=/api` and loads a proxy overlay from `agents/server/vite.integration.mjs`. That overlay preserves the frontend's existing asset settings. The root build script also supplies the API URL without changing frontend files.
+The frontend now consumes the full response, displays only the selected reply, highlights that tile, and connects Start/Reset/Leave to the session API. The existing layout and portraits are preserved. The development launcher supplies `VITE_API_URL=/api` and loads a proxy overlay from `agents/server/vite.integration.mjs`. That overlay preserves the frontend's existing asset settings. The root build script also supplies the API URL without changing frontend files.
 
 The original `LarpHacks/investor-verdict` checkout, including all its uncommitted work, was preserved. This worktree starts from the latest main, merges the agents branch, and carries over the previously authorized backend/key setup. Its ignored `.env` links to the original local credential file; the key was not copied into code or Git.
 
@@ -97,24 +97,22 @@ An HttpOnly, SameSite=Strict cookie associates follow-up requests with the same 
 
 Sessions close after two idle minutes, on explicit `POST /api/reset`, on an evaluation error, or on server shutdown. A subsequent request starts a new pitch at 50. Concurrent evaluation in the same session is rejected. The service limits simultaneous pitch sessions and does not automatically retry paid conversations. An assessment or selected-speaker failure returns an error and closes that pitch's sessions.
 
-## Frontend work intentionally left for its owner
+## Frontend integration
 
-1. Display only replies with `responses[].spoke === true`, and use `speaker` to identify that investor. Respect `speaker: null` as silence. Confidence reasons can be shown separately, but must not appear as spoken dialogue. The current frontend consumes only `scores`, so the backend's conversational replies and brief feedback are not yet visible in chat.
-2. Change the four initial display values to 50. Until then, the existing 62/41/78/55 seeds remain visible before the first real result, and the first displayed deltas compare against those seeds.
-3. Call `/api/reset` from Reset/New pitch/Leave as appropriate. The current Reset and Leave buttons do not notify the backend; server sessions expire after two idle minutes. A local Reset by itself does not reset investor memory.
-4. Decide how Freeze scores should interact with evaluation. Currently the UI still sends a request while frozen and discards the returned values, while the backend's conversation and scores advance.
-5. Add terminal-state and timeout feedback. Backend statuses and errors are available, but the UI currently shows only numeric score changes or its generic failure message.
+`frontend/confidence-panel/src/main.ts` now validates and consumes the full response, updates all four scores, and renders only `spoke: true` dialogue via `textContent`. The responding tile is highlighted; silence clears highlighting without inventing another message. Confidence starts at 50, with terminal labels for passed and simulated offer.
 
-No voice or microphone path was exercised. No frontend layout, styling, labels, controls, seed values, or source files were changed. Public deployment still requires user authentication before exposing paid API operations; this server binds only to loopback.
+Start/Reset/Leave call `/api/reset`. Controls are disabled during evaluation/reset, and there is no request queue, so stale work cannot enter a new pitch. Failures preserve text for manual retry. The Freeze control and silent heuristic fallback are removed from the live flow. See `agents/FRONTEND_HANDOFF.md` for the full contract and validation record.
+
+Only text replies were tested. Audio output and public deployment are outside this change. The separate Render deployment files from main are preserved, but that server does not yet host these text endpoints. The verified root launcher uses the loopback API and Vite proxy.
 
 ## Verification
 
-- `git diff --exit-code origin/main -- frontend` passes, confirming the entire frontend matches the pulled baseline.
+- Frontend source changes are limited to `main.ts` and four CSS rules; no HTML layout or portrait changes.
 - 20 automated tests pass, including relevance selection, consecutive-speaker penalty, random tie-breaking, all-pass silence, shared context, exclusive speaker grants, terminal silence, invalid bids, score gating, error cleanup, persistent sessions, and API credential handling.
 - A live three-message backend test with the updated remote prompts selected the Technical Expert for an architecture question, then the Market Signals Researcher for demand validation, then nobody when the founder requested quiet. Non-speakers returned empty replies. During the quiet message, all four passed and confidence stayed unchanged at 50/55/55/55. All test sessions were closed afterward.
 - The current frontend builds successfully with the API URL supplied externally.
 - Before dynamic turn selection was added, a real synthetic text pitch reached all four ElevenLabs agents and returned 55, 55, 55, and 60 in frontend order.
-- The unchanged frontend's text form was exercised in Chrome and visibly updated all four score tiles from the backend response. No microphone permission or audio generation was used.
+- Before reply rendering was connected, the frontend's text form was exercised in Chrome and visibly updated all four score tiles from the backend response. No microphone permission or audio generation was used.
 - In that earlier browser verification, a second browser turn preserved the conversation and returned 55, 55, 55, and 65. The visible result is saved in `agents/text-integration-preview.jpg`.
 
-The integration is prepared on `feat/agents/text-integration` for review and frontend handoff, without changing frontend files or merging into main. See `agents/FRONTEND_HANDOFF.md` for the frontend developer's task. The earlier original-checkout handoff describes that checkout, not this newer frontend-compatible adapter.
+The integration and minimal frontend connection are on `feat/agents/text-integration` for PR #3, addressing issue #4. See `agents/FRONTEND_HANDOFF.md` for the frontend developer's task. The earlier original-checkout handoff describes that checkout, not this newer frontend-compatible adapter.

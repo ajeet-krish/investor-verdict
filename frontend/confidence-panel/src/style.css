@@ -64,3 +64,8 @@ h1{font-size:20px;font-weight:500;margin:0 0 4px}
 .start:active{transform:scale(.98)}
 .start:focus-visible{outline:3px solid #3fd16a;outline-offset:3px}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.t.responding{outline:2px solid #3fd16a;outline-offset:-2px}
+.t.responding .nm::after{content:" · Responded";color:#3fd16a}
+.msg.investor{align-self:flex-start;background:#25382e;white-space:pre-wrap}
+.tb button:disabled{opacity:.5;cursor:default}

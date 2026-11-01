@@ -2,7 +2,17 @@ import "./style.css";
 
 /* ---------- Types ---------- */
 
+type InvestorRole = "technical_expert" | "market_signals_researcher" | "interrogator" | "sympathizer";
+
+interface Evaluation {
+  scores: number[];
+  responses: { role: InvestorRole; panelist: string; reply: string; spoke: boolean }[];
+  speaker: InvestorRole | null;
+  turn: number;
+}
+
 interface Seed {
+  role: InvestorRole;
   name: string;
   bg: string;
   score: number;
@@ -10,7 +20,6 @@ interface Seed {
 }
 
 interface Panelist extends Seed {
-  start: number;
   el: HTMLElement;
   fill: HTMLElement;
   value: HTMLElement;
@@ -41,18 +50,17 @@ type RecognitionCtor = new () => RecognitionLike;
 /* ---------- Config ---------- */
 
 const SEEDS: Seed[] = [
-  { name: "The CTO", bg: "#2b2320", score: 62, photo: "/investors/02_technical_expert_zoom.png" },
-  { name: "The VP", bg: "#1f2a36", score: 41, photo: "/investors/01_market_signals_researcher_zoom.png" },
-  { name: "The Interrogator", bg: "#1f2b25", score: 78, photo: "/investors/03_interrogator_zoom.png" },
-  { name: "The Sympathizer", bg: "#332a1c", score: 55, photo: "/investors/04_sympathizer_zoom.png" },
+  { role: "technical_expert", name: "The CTO", bg: "#2b2320", score: 50, photo: "/investors/02_technical_expert_zoom.png" },
+  { role: "market_signals_researcher", name: "The VP", bg: "#1f2a36", score: 50, photo: "/investors/01_market_signals_researcher_zoom.png" },
+  { role: "interrogator", name: "The Interrogator", bg: "#1f2b25", score: 50, photo: "/investors/03_interrogator_zoom.png" },
+  { role: "sympathizer", name: "The Sympathizer", bg: "#332a1c", score: 50, photo: "/investors/04_sympathizer_zoom.png" },
 ];
 
-// Set VITE_API_URL (for example in frontend/.env) to score pitches on your backend.
-const API_URL: string | undefined = import.meta.env.VITE_API_URL;
+// The root launcher proxies this same-origin API; never put credentials in VITE variables.
+const API_URL: string = import.meta.env.VITE_API_URL || "/api";
 
 /* ---------- Helpers ---------- */
 
-const clamp = (n: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, n));
 const pad = (n: number): string => String(n).padStart(2, "0");
 const signed = (n: number): string => (n > 0 ? `+${n}` : n < 0 ? `\u2212${Math.abs(n)}` : "\u00b10");
 
@@ -70,40 +78,38 @@ function must<T extends Element>(root: ParentNode, selector: string): T {
 
 /* ---------- Scoring ---------- */
 
-// PLACEHOLDER: a simple keyword heuristic so the bars react while there's no backend.
-// Replace by setting VITE_API_URL; the server should answer POST {API_URL}/evaluate.
-const TRAITS: string[][] = [
-  ["revenue", "profit", "margin", "sales", "price", "growth", "%", "$"],
-  ["data", "proof", "evidence", "risk", "competitor", "test", "pilot", "cost"],
-  ["team", "plan", "process", "hire", "launch", "roadmap", "scale", "ship"],
-  ["customer", "market", "experience", "years", "retention", "partner", "brand", "distribution"],
-];
-
-function localEvaluate(pitch: string, current: number[]): number[] {
-  const text = pitch.toLowerCase();
-  const words = text.split(/\s+/).filter(Boolean).length;
-  const detail = Math.min(words, 40) / 40;
-  return current.map((score, i) => {
-    const hits = TRAITS[i].filter((t) => text.includes(t)).length;
-    const delta = hits * 6 + detail * 6 - 7 + (Math.random() - 0.5) * 4;
-    return clamp(score + delta, 5, 98);
+async function post(path: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
+  let data;
+  try { data = await res.json(); }
+  catch { throw new Error("The investor service is unavailable. Please try again."); }
+  if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : `Request failed (${res.status}).`);
+  return data;
 }
 
-async function evaluate(pitch: string, current: number[]): Promise<number[]> {
-  if (!API_URL) return localEvaluate(pitch, current);
-  const res = await fetch(`${API_URL}/evaluate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pitch, panelists: SEEDS.map((s) => s.name), scores: current }),
-  });
-  if (!res.ok) throw new Error(`Evaluate failed: ${res.status}`);
-  const data = (await res.json()) as { scores?: unknown };
-  const scores = data.scores;
-  if (!Array.isArray(scores) || scores.length !== current.length || !scores.every((s) => typeof s === "number")) {
-    throw new Error("Unexpected response shape");
+async function evaluate(pitch: string, current: number[]): Promise<Evaluation> {
+  const raw = await post("/evaluate", { pitch, panelists: SEEDS.map(s => s.name), scores: current });
+  if (!raw || typeof raw !== "object") throw new Error("Unexpected investor response.");
+  const data = raw as Evaluation;
+  if (!Array.isArray(data.scores) || data.scores.length !== SEEDS.length ||
+      !data.scores.every(s => typeof s === "number" && Number.isFinite(s) && s >= 0 && s <= 100) ||
+      !Number.isSafeInteger(data.turn) || data.turn < 1 ||
+      !Array.isArray(data.responses) || data.responses.length !== SEEDS.length ||
+      !data.responses.every((r, i) => r && r.role === SEEDS[i].role && r.panelist === SEEDS[i].name &&
+        typeof r.reply === "string" && typeof r.spoke === "boolean" &&
+        (r.spoke ? r.reply.trim().length > 0 : r.reply === ""))) {
+    throw new Error("Unexpected investor response.");
   }
-  return (scores as number[]).map((s) => clamp(s, 0, 100));
+  const speakers = data.responses.filter(r => r.spoke);
+  if (data.speaker === null ? speakers.length !== 0 : speakers.length !== 1 || speakers[0].role !== data.speaker) {
+    throw new Error("Unexpected investor speaker.");
+  }
+  return data;
 }
 
 /* ---------- Photos ---------- */
@@ -177,7 +183,6 @@ function buildTile(seed: Seed, index: number, grid: HTMLElement): Panelist {
 
   const panelist: Panelist = {
     ...seed,
-    start: seed.score,
     el,
     fill: must<HTMLElement>(el, ".fl"),
     value: must<HTMLElement>(el, ".v"),
@@ -308,14 +313,24 @@ function main(): void {
   const camBtn = must<HTMLButtonElement>(document, "#cam");
   const chatBtn = must<HTMLButtonElement>(document, "#chat");
   const freezeBtn = must<HTMLButtonElement>(document, "#freeze");
-  const freezeLabel = must<HTMLElement>(document, "#freeze-label");
+  const resetBtn = must<HTMLButtonElement>(document, "#reset");
+  const leaveBtn = must<HTMLButtonElement>(document, "#leave");
+  const startBtn = must<HTMLButtonElement>(document, "#start");
+  freezeBtn.hidden = true; // Live confidence is authoritative; do not discard score updates.
+  promptInput.maxLength = 4000;
 
   const panel = SEEDS.map((seed, i) => buildTile(seed, i, grid));
-  let frozen = false;
   let busy = false;
   let interim = "";
   let notice = "";
-  let chain: Promise<void> = Promise.resolve();
+  let lastTurn = 0;
+  const setBusy = (value: boolean): void => {
+    busy = value;
+    for (const control of [send, resetBtn, leaveBtn, startBtn, micBtn, promptInput]) control.disabled = value;
+  };
+  const showSpeaker = (role: InvestorRole | null): void => {
+    panel.forEach(p => p.el.classList.toggle("responding", p.role === role));
+  };
 
   /* status line */
   const renderStatus = (): void => {
@@ -340,7 +355,7 @@ function main(): void {
       p.fill.style.height = `${v}%`;
       p.fill.style.backgroundColor = colorFor(v);
       p.value.textContent = String(v);
-      p.chip.textContent = `Confidence ${v}`;
+      p.chip.textContent = v === 0 ? "Passed · 0" : v === 100 ? "Simulated offer · 100" : `Confidence ${v}`;
     }
   };
 
@@ -354,39 +369,46 @@ function main(): void {
     log.scrollTop = log.scrollHeight;
   };
 
-  /* judging pipeline: text and voice both land here, one pitch at a time */
+  /* One request at a time; no queued requests can leak into a new pitch. */
   const judge = async (text: string): Promise<void> => {
-    busy = true;
-    send.disabled = true;
+    setBusy(true);
+    voice.stop();
+    showSpeaker(null);
+    notice = "";
     renderStatus();
     try {
-      const before = panel.map((p) => p.score);
-      const next = await evaluate(text, before);
-      if (frozen) {
-        addMsg("sys", "Scores are frozen, so this pitch didn't change them.");
-      } else {
-        panel.forEach((p, i) => (p.score = next[i]));
-        draw();
-        addMsg(
-          "sys",
-          panel.map((p, i) => `${p.name} ${Math.round(p.score)} (${signed(Math.round(p.score) - Math.round(before[i]))})`).join(" \u00b7 "),
-        );
+      let before = panel.map(p => p.score);
+      const result = await evaluate(text, before);
+      if (result.turn === 1 && lastTurn > 0) {
+        before = panel.map(() => 50);
+        addMsg("sys", "Your previous session expired. This pitch starts fresh at 50.");
       }
+      lastTurn = result.turn;
+      panel.forEach((p, i) => (p.score = result.scores[i]));
+      draw();
+      addMsg("sys", panel.map((p, i) => `${p.name} ${p.score} (${signed(p.score - before[i])})`).join(" · "));
+      const reply = result.responses.find(r => r.spoke);
+      showSpeaker(result.speaker);
+      if (reply) addMsg("investor", `${reply.panelist}: ${reply.reply}`);
+      else showNotice("The panel is listening.");
     } catch (err) {
-      console.error(err);
-      addMsg("sys", "The panel couldn't respond. Check your connection and try again.");
+      const message = err instanceof Error ? err.message : "The panel couldn't respond.";
+      addMsg("sys", `${message} Your text is below so you can retry.`);
+      promptInput.value = text;
     } finally {
-      busy = false;
-      send.disabled = false;
+      setBusy(false);
       renderStatus();
+      promptInput.focus();
     }
   };
 
   const submit = (raw: string, via: "text" | "voice"): void => {
     const text = raw.trim();
-    if (!text) return;
+    if (!text || busy || app.hidden) return;
+    if (text.length > 4000) { showNotice("Please keep your pitch under 4,000 characters."); return; }
+    promptInput.value = "";
     addMsg(via === "voice" ? "you voice" : "you", text);
-    chain = chain.then(() => judge(text));
+    void judge(text);
   };
 
   /* voice: the panel listens to everything you say */
@@ -431,34 +453,52 @@ function main(): void {
     if (open) promptInput.focus();
   });
 
-  freezeBtn.addEventListener("click", () => {
-    frozen = !frozen;
-    freezeBtn.setAttribute("aria-pressed", String(frozen));
-    freezeLabel.textContent = frozen ? "Unfreeze scores" : "Freeze scores";
-  });
-
-  must<HTMLButtonElement>(document, "#reset").addEventListener("click", () => {
-    panel.forEach((p) => (p.score = p.start));
-    draw();
-    log.replaceChildren();
-  });
+  // Reset/Leave are disabled while evaluating, avoiding late responses and cookie races.
+  const resetSession = async (): Promise<boolean> => {
+    if (busy) return false;
+    setBusy(true);
+    voice.stop();
+    showSpeaker(null);
+    notice = "";
+    renderStatus();
+    try {
+      const result = await post("/reset", {}) as { scores?: unknown } | null;
+      if (!result || !Array.isArray(result.scores) || result.scores.length !== 4 || !result.scores.every(s => s === 50)) {
+        throw new Error("The session could not be reset. Please try again.");
+      }
+      panel.forEach(p => (p.score = 50));
+      lastTurn = 0;
+      draw();
+      log.replaceChildren();
+      promptInput.value = "";
+      return true;
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : "Couldn't reset the session. Please try again.");
+      if (app.hidden) startBtn.textContent = "Couldn't connect. Click to retry";
+      return false;
+    } finally {
+      setBusy(false);
+      renderStatus();
+    }
+  };
+  resetBtn.addEventListener("click", () => { void resetSession(); });
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const value = promptInput.value;
-    promptInput.value = "";
-    submit(value, "text");
+    submit(promptInput.value, "text");
   });
 
   /* welcome <-> call */
-  must<HTMLButtonElement>(document, "#start").addEventListener("click", () => {
+  startBtn.addEventListener("click", async () => {
+    if (!await resetSession()) return;
+    startBtn.textContent = "Click here to get started";
     welcome.hidden = true;
     app.hidden = false;
     window.scrollTo(0, 0);
     promptInput.focus();
   });
-  must<HTMLButtonElement>(document, "#leave").addEventListener("click", () => {
-    voice.stop();
+  leaveBtn.addEventListener("click", async () => {
+    if (!await resetSession()) return;
     app.hidden = true;
     welcome.hidden = false;
     window.scrollTo(0, 0);

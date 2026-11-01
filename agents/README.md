@@ -1,8 +1,8 @@
 # Current text integration
 
-Frontend developer/agent: start with [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md) for the exact API types, remaining UI changes, session handling, and acceptance checks.
+The frontend is now connected. See [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md) for API types, implemented UI/session behavior, and browser validation.
 
-See [TEXT_INTEGRATION.md](TEXT_INTEGRATION.md) for the current frontend-compatible text adapter, startup, verified behavior, and frontend work intentionally left untouched. This integration worktree uses the latest frontend unchanged. The following notes describe the carried-over voice-capable setup; the current text UI uses the server-side `/api/evaluate` adapter instead of that browser-session facade.
+See [TEXT_INTEGRATION.md](TEXT_INTEGRATION.md) for the current frontend-compatible text adapter, startup, verified behavior, and the minimal frontend connection. The current UI shows the selected investor reply, scores, and responding tile, with backend session reset. The following notes describe the carried-over voice-capable setup; the current text UI uses the server-side `/api/evaluate` adapter instead of that browser-session facade.
 
 Current text turn policy: investors bid privately for the floor; at most one speaks per founder message, and everyone can pass. There is no fixed speaking order. All four use `deepseek-v41-flash`. See the linked integration notes and `prompts/turn-taking.md` for the current protocol; the older `visuals/confidence/elevenlabs-config.json` snapshot predates that protocol.
 
